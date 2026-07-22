@@ -165,7 +165,7 @@ $btnPanel.Controls.Add($btnConnect)
 
 $btnDisconnect = New-Object System.Windows.Forms.Button
 $btnDisconnect.Text = "Disconnect"
-$btnDisconnect.Location = New-Object System.Drawing.Point(170, 5)
+$btnDisconnect.Location = New-Object System.Drawing.Point(110, 5)
 $btnDisconnect.Size = New-Object System.Drawing.Size(90, 35)
 $btnDisconnect.BackColor = $colorRed
 $btnDisconnect.ForeColor = [System.Drawing.Color]::White
@@ -175,7 +175,7 @@ $btnPanel.Controls.Add($btnDisconnect)
 
 $btnCopy = New-Object System.Windows.Forms.Button
 $btnCopy.Text = "Copy Address"
-$btnCopy.Location = New-Object System.Drawing.Point(270, 5)
+$btnCopy.Location = New-Object System.Drawing.Point(210, 5)
 $btnCopy.Size = New-Object System.Drawing.Size(95, 35)
 $btnCopy.BackColor = $colorAccent
 $btnCopy.ForeColor = [System.Drawing.Color]::White
@@ -183,10 +183,20 @@ $btnCopy.FlatStyle = "Flat"
 $btnCopy.Font = New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Bold)
 $btnPanel.Controls.Add($btnCopy)
 
+$btnTestDriver = New-Object System.Windows.Forms.Button
+$btnTestDriver.Text = [char]0x0422 + [char]0x0435 + [char]0x0441 + [char]0x0442 + " driver"
+$btnTestDriver.Location = New-Object System.Drawing.Point(315, 5)
+$btnTestDriver.Size = New-Object System.Drawing.Size(80, 35)
+$btnTestDriver.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+$btnTestDriver.ForeColor = [System.Drawing.Color]::White
+$btnTestDriver.FlatStyle = "Flat"
+$btnTestDriver.Font = New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Bold)
+$btnPanel.Controls.Add($btnTestDriver)
+
 $btnUpdate = New-Object System.Windows.Forms.Button
 $btnUpdate.Text = "Update"
-$btnUpdate.Location = New-Object System.Drawing.Point(375, 5)
-$btnUpdate.Size = New-Object System.Drawing.Size(70, 35)
+$btnUpdate.Location = New-Object System.Drawing.Point(405, 5)
+$btnUpdate.Size = New-Object System.Drawing.Size(50, 35)
 $btnUpdate.BackColor = $colorPurple
 $btnUpdate.ForeColor = [System.Drawing.Color]::White
 $btnUpdate.FlatStyle = "Flat"
@@ -200,16 +210,6 @@ $logLabel.Location = New-Object System.Drawing.Point(15, 380)
 $logLabel.AutoSize = $true
 $logLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($logLabel)
-
-$btnTestDriver = New-Object System.Windows.Forms.Button
-$btnTestDriver.Text = "Тест драйвер"
-$btnTestDriver.Location = New-Object System.Drawing.Point(395, 378)
-$btnTestDriver.Size = New-Object System.Drawing.Size(75, 25)
-$btnTestDriver.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
-$btnTestDriver.ForeColor = [System.Drawing.Color]::White
-$btnTestDriver.FlatStyle = "Flat"
-$btnTestDriver.Font = New-Object System.Drawing.Font("Segoe UI", 7.5, [System.Drawing.FontStyle]::Bold)
-$form.Controls.Add($btnTestDriver)
 
 $logBox = New-Object System.Windows.Forms.TextBox
 $logBox.Location = New-Object System.Drawing.Point(15, 400)
