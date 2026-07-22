@@ -39,6 +39,9 @@ function Read-Config {
     if (-not (Get-Member -InputObject $config -Name 'test_driver_path' -MemberType NoteProperty -ErrorAction SilentlyContinue)) {
         $config | Add-Member -NotePropertyName 'test_driver_path' -NotePropertyValue '' -Force
     }
+    if (-not (Get-Member -InputObject $config -Name 'operator_password' -MemberType NoteProperty -ErrorAction SilentlyContinue)) {
+        $config | Add-Member -NotePropertyName 'operator_password' -NotePropertyValue 30 -Force
+    }
 
     return $config
 }
