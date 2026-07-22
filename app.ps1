@@ -8,8 +8,9 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $localConfig = Join-Path $scriptDir "config.local.json"
 $configFile = if (Test-Path $localConfig) { $localConfig } else { Join-Path $scriptDir "config.json" }
 
-# Import config module
+# Import modules
 . "$scriptDir\lib\config.ps1"
+. "$scriptDir\lib\ssh.ps1"
 
 try {
     $config = Read-Config $configFile
@@ -320,34 +321,48 @@ $btnConnect.Add_Click({
     Add-Log "=== Connecting to $kassaName ($kassaIP) ==="
 
     # Kill old plink
-    Get-Process plink -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Stop-PlinkTunnels
     Start-Sleep -Milliseconds 500
 
     # Test SSH
     Add-Log "1. Testing SSH..."
-    $test = & $plinkPath -batch -ssh -P $config.ssh_port -pw $pw -l $config.ssh_user $kassaIP "echo SSH_OK" 2>&1
-    $testStr = ($test -join "`n").Trim()
+    try {
+        $test = Invoke-Plink -PlinkPath $plinkPath -Host $kassaIP -Port $config.ssh_port `
+            -User $config.ssh_user -Password $pw -Command "echo SSH_OK"
+        $testStr = ($test -join "`n").Trim()
+    } catch {
+        $testStr = ""
+    }
 
     if ($testStr -match "SSH_OK") {
         Add-Log "   SSH OK"
     } else {
         Add-Log "   FAILED - check password/IP"
         Set-Status "SSH Failed" "red"
+        $pwBox.Text = [string]::Empty
         $btnConnect.Enabled = $true
         return
     }
 
     # Disable graphics
     Add-Log "2. Disabling graphics..."
-    $xorgOut = & $plinkPath -batch -ssh -P $config.ssh_port -pw $pw -l $config.ssh_user $kassaIP "pgrep Xorg | head -1" 2>&1
-    $xorgStr = ($xorgOut -join "`n").Trim()
+    try {
+        $xorgOut = Invoke-Plink -PlinkPath $plinkPath -Host $kassaIP -Port $config.ssh_port `
+            -User $config.ssh_user -Password $pw -Command "pgrep Xorg | head -1"
+        $xorgStr = ($xorgOut -join "`n").Trim()
+    } catch {
+        $xorgStr = ""
+    }
 
     $pidStr = ""
     if ($xorgStr -match '(\d+)') { $pidStr = $Matches[1] }
 
     if ($pidStr -match '^\d+$') {
         Add-Log "   Found Xorg PID: $pidStr"
-        & $plinkPath -batch -ssh -P $config.ssh_port -pw $pw -l $config.ssh_user $kassaIP "sudo kill -INT $pidStr" 2>&1 | Out-Null
+        try {
+            Invoke-Plink -PlinkPath $plinkPath -Host $kassaIP -Port $config.ssh_port `
+                -User $config.ssh_user -Password $pw -Command "sudo kill -INT $pidStr" | Out-Null
+        } catch {}
         Add-Log "   Graphics killed"
     } else {
         Add-Log "   Xorg not running (already disabled)"
@@ -360,18 +375,36 @@ $btnConnect.Add_Click({
     Add-Log "   FR: $($config.fr_ip):$($config.fr_port)"
     Add-Log "   Local port: $($config.local_port)"
 
-    Get-Process plink -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Stop-PlinkTunnels
     Start-Sleep -Milliseconds 500
 
-    $tunnelArgs = "-batch -ssh -P $($config.ssh_port) -pw $pw -l $($config.ssh_user) -L $($config.local_port):$($config.fr_ip):$($config.fr_port) -N $kassaIP"
-    $proc = Start-Process -FilePath $plinkPath -ArgumentList $tunnelArgs -PassThru -WindowStyle Hidden
-    Add-Log "   plink started (PID: $($proc.Id))"
+    try {
+        $proc = Start-PlinkTunnel -PlinkPath $plinkPath -Host $kassaIP -Port $config.ssh_port `
+            -User $config.ssh_user -Password $pw `
+            -LocalPort $config.local_port -RemoteHost $config.fr_ip -RemotePort $config.fr_port
+        Add-Log "   plink started (PID: $($proc.Id))"
+    } catch {
+        Add-Log "   FAILED to start plink: $_"
+        Set-Status "Tunnel Failed" "red"
+        $pwBox.Text = [string]::Empty
+        $btnConnect.Enabled = $true
+        return
+    }
 
-    Start-Sleep -Seconds 4
+    # Retry port check (up to 10 seconds)
+    $maxRetries = 10
+    $portReady = $false
+    for ($i = 1; $i -le $maxRetries; $i++) {
+        Start-Sleep -Seconds 1
+        $portCheck = netstat -ano | findstr ":$($config.local_port).*LISTEN"
+        if ($portCheck) {
+            $portReady = $true
+            Add-Log "   Port listening after ${i}s"
+            break
+        }
+    }
 
-    $portCheck = netstat -ano | findstr ":$($config.local_port).*LISTEN"
-    if ($portCheck) {
-        Add-Log "   Port $($config.local_port) is listening"
+    if ($portReady) {
         Add-Log "   === CONNECTED ==="
         Add-Log "   FR address: 127.0.0.1:$($config.local_port)"
         Set-Status "Connected to $kassaName" "green"
@@ -380,18 +413,20 @@ $btnConnect.Add_Click({
         $script:connectedKassa = $kassaName
         $timer.Start()
     } else {
-        Add-Log "   Port NOT listening"
+        Add-Log "   Port NOT listening after ${maxRetries}s"
         Add-Log "   TUNNEL FAILED"
         Set-Status "Tunnel Failed" "red"
+        Stop-PlinkTunnels
     }
 
+    $pwBox.Text = [string]::Empty
     $btnConnect.Enabled = $true
     Write-AppLog "Connection attempt completed"
 })
 
 # Disconnect button
 $btnDisconnect.Add_Click({
-    Get-Process plink -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Stop-PlinkTunnels
     Add-Log "Disconnected"
     Set-Status "Disconnected" "gray"
     $script:connected = $false

@@ -15,6 +15,7 @@ $pidDir = Join-Path $scriptDir "pids"
 
 # Read config
 . "$scriptDir\lib\config.ps1"
+. "$scriptDir\lib\ssh.ps1"
 try {
     $config = Read-Config $configPath
 } catch {
@@ -89,8 +90,8 @@ if (-not (Test-Path $plinkPath)) {
     exit 1
 }
 
-# Stop existing plink
-Get-Process plink -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+# Stop existing tunnels
+Stop-PlinkTunnels
 
 # Clean up PID files
 if (-not (Test-Path $pidDir)) {
@@ -105,8 +106,14 @@ $password = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
 
 # Test connection
 Write-Host "Testing connection..." -ForegroundColor Gray
-$testResult = & cmd /c "echo | `"$plinkPath`" -ssh -P $sshPort -pw `"$password`" -l $sshUser $kassaIP echo CONNECTION_OK 2>&1"
-if ($testResult -notmatch "CONNECTION_OK") {
+try {
+    $testResult = Invoke-Plink -PlinkPath $plinkPath -Host $kassaIP -Port $sshPort `
+        -User $sshUser -Password $password -Command "echo CONNECTION_OK"
+    $testStr = ($testResult -join "`n")
+} catch {
+    $testStr = ""
+}
+if ($testStr -notmatch "CONNECTION_OK") {
     Write-Host "Connection failed. Check password and IP." -ForegroundColor Red
     exit 1
 }
@@ -116,11 +123,21 @@ Write-Host "Connection OK" -ForegroundColor Green
 Write-Host "Disabling graphics on cash register..." -ForegroundColor Yellow
 
 # Find and kill Xorg by PID
-$xorgPid = & cmd /c "`"$plinkPath`" -ssh -P $sshPort -pw `"$password`" -l $sshUser $kassaIP pgrep Xorg 2>&1"
-if ($xorgPid -match '\d+') {
-    $pid = $xorgPid.Trim()
+try {
+    $xorgOut = Invoke-Plink -PlinkPath $plinkPath -Host $kassaIP -Port $sshPort `
+        -User $sshUser -Password $password -Command "pgrep Xorg"
+    $xorgStr = ($xorgOut -join "`n")
+} catch {
+    $xorgStr = ""
+}
+
+if ($xorgStr -match '\d+') {
+    $pid = $xorgStr.Trim()
     Write-Host "  Found Xorg PID: $pid" -ForegroundColor Gray
-    & cmd /c "`"$plinkPath`" -ssh -P $sshPort -pw `"$password`" -l $sshUser $kassaIP `"sudo kill -INT $pid`" 2>&1" | Out-Null
+    try {
+        Invoke-Plink -PlinkPath $plinkPath -Host $kassaIP -Port $sshPort `
+            -User $sshUser -Password $password -Command "sudo kill -INT $pid" | Out-Null
+    } catch {}
     Write-Host "  Graphics disabled" -ForegroundColor Green
 } else {
     Write-Host "  Xorg not running (already disabled)" -ForegroundColor Gray
@@ -128,28 +145,30 @@ if ($xorgPid -match '\d+') {
 
 Start-Sleep -Seconds 2
 
-# Start tunnel via ProcessStartInfo with redirected stdin
+# Start tunnel
 Write-Host "Starting SSH tunnel..." -ForegroundColor Yellow
 
 try {
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $plinkPath
-    $psi.Arguments = "-ssh -P $sshPort -pw $password -l $sshUser -L ${localPort}:${frIP}:${frPort} -N $kassaIP"
-    $psi.UseShellExecute = $false
-    $psi.CreateNoWindow = $true
-    $psi.RedirectStandardInput = $true
-    $psi.RedirectStandardError = $true
-    $tunnelProc = [System.Diagnostics.Process]::Start($psi)
+    $tunnelProc = Start-PlinkTunnel -PlinkPath $plinkPath -Host $kassaIP -Port $sshPort `
+        -User $sshUser -Password $password `
+        -LocalPort $localPort -RemoteHost $frIP -RemotePort $frPort
     Write-Host "plink started (PID: $($tunnelProc.Id))" -ForegroundColor Gray
 } catch {
     Write-Host "FAILED to start plink: $_" -ForegroundColor Red
     exit 1
 }
 
-Start-Sleep -Seconds 4
-
-# Verify tunnel
-$listening = netstat -ano | findstr ":$localPort.*LISTEN"
+# Retry port check (up to 10 seconds)
+$maxRetries = 10
+$listening = $false
+for ($i = 1; $i -le $maxRetries; $i++) {
+    Start-Sleep -Seconds 1
+    $check = netstat -ano | findstr ":$localPort.*LISTEN"
+    if ($check) {
+        $listening = $true
+        break
+    }
+}
 if ($listening) {
     Write-Host ""
     Write-Host "=== TUNNEL ACTIVE ===" -ForegroundColor Green
