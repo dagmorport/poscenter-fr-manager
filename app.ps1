@@ -12,6 +12,7 @@ $configFile = if (Test-Path $localConfig) { $localConfig } else { Join-Path $scr
 . "$scriptDir\lib\config.ps1"
 . "$scriptDir\lib\ssh.ps1"
 . "$scriptDir\lib\update.ps1"
+. "$scriptDir\lib\logging.ps1"
 
 try {
     $config = Read-Config $configFile
@@ -33,15 +34,6 @@ $appVersion = if (Test-Path $localVersionFile) { (Get-Content $localVersionFile 
 $script:connected = $false
 $script:connectTime = $null
 $script:connectedKassa = ""
-
-function Write-AppLog {
-    param([string]$msg, [string]$level = "INFO")
-    $logDir = Join-Path $scriptDir "logs"
-    if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
-    $logFile = Join-Path $logDir "app_$(Get-Date -Format 'yyyy-MM-dd').log"
-    $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Add-Content -Path $logFile -Value "[$ts] [$level] $msg" -Encoding UTF8
-}
 
 # Colors
 $colorBg = [System.Drawing.Color]::FromArgb(240, 240, 240)
@@ -250,9 +242,7 @@ $timer.Add_Tick({
 
 function Add-Log {
     param([string]$msg)
-    $logBox.AppendText("`r`n$msg")
-    $logBox.ScrollToCaret()
-    Write-AppLog $msg
+    Add-UILog -LogBox $logBox -msg $msg
 }
 
 function Set-Status {
@@ -457,6 +447,7 @@ $btnTestDriver.Add_Click({
 })
 
 # Startup
+Rotate-Logs
 Add-Log "Application started v$appVersion"
 Add-Log "FR address: 127.0.0.1:$($config.local_port)"
 Add-Log "Cash registers: $($config.kassas.Count)"
