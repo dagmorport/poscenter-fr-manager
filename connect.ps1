@@ -14,7 +14,13 @@ $configPath = Join-Path $scriptDir "config.json"
 $pidDir = Join-Path $scriptDir "pids"
 
 # Read config
-$config = Get-Content $configPath -Raw | ConvertFrom-Json
+. "$scriptDir\lib\config.ps1"
+try {
+    $config = Read-Config $configPath
+} catch {
+    Write-Host "Config error: $_" -ForegroundColor Red
+    exit 1
+}
 
 # Find target cash register
 $target = $null

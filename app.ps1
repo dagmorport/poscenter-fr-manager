@@ -7,7 +7,16 @@ Add-Type -AssemblyName System.Drawing
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $localConfig = Join-Path $scriptDir "config.local.json"
 $configFile = if (Test-Path $localConfig) { $localConfig } else { Join-Path $scriptDir "config.json" }
-$config = Get-Content $configFile -Raw | ConvertFrom-Json
+
+# Import config module
+. "$scriptDir\lib\config.ps1"
+
+try {
+    $config = Read-Config $configFile
+} catch {
+    [System.Windows.Forms.MessageBox]::Show("Config error: $_", "POScenter FR Manager", "OK", "Error")
+    exit 1
+}
 $plinkPath = Join-Path $scriptDir "plink.exe"
 $testDriverPath = "C:\Program Files\Poscenter\DrvKKT\Bin\DrvFRTst.exe"
 $repo = "dagmorport/poscenter-fr-manager"
