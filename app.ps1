@@ -1,4 +1,6 @@
 # POScenter FR Manager - WinForms Version
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
@@ -151,20 +153,10 @@ $btnPanel.Location = New-Object System.Drawing.Point(15, 325)
 $btnPanel.Size = New-Object System.Drawing.Size(455, 45)
 $form.Controls.Add($btnPanel)
 
-$btnTest = New-Object System.Windows.Forms.Button
-$btnTest.Text = "Test"
-$btnTest.Location = New-Object System.Drawing.Point(0, 5)
-$btnTest.Size = New-Object System.Drawing.Size(60, 35)
-$btnTest.BackColor = $colorOrange
-$btnTest.ForeColor = [System.Drawing.Color]::White
-$btnTest.FlatStyle = "Flat"
-$btnTest.Font = New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Bold)
-$btnPanel.Controls.Add($btnTest)
-
 $btnConnect = New-Object System.Windows.Forms.Button
 $btnConnect.Text = "Connect"
-$btnConnect.Location = New-Object System.Drawing.Point(70, 5)
-$btnConnect.Size = New-Object System.Drawing.Size(90, 35)
+$btnConnect.Location = New-Object System.Drawing.Point(0, 5)
+$btnConnect.Size = New-Object System.Drawing.Size(100, 35)
 $btnConnect.BackColor = $colorGreen
 $btnConnect.ForeColor = [System.Drawing.Color]::White
 $btnConnect.FlatStyle = "Flat"
@@ -208,15 +200,6 @@ $logLabel.Location = New-Object System.Drawing.Point(15, 380)
 $logLabel.AutoSize = $true
 $logLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($logLabel)
-
-$btnClearLog = New-Object System.Windows.Forms.Button
-$btnClearLog.Text = "Clear"
-$btnClearLog.Location = New-Object System.Drawing.Point(330, 380)
-$btnClearLog.Size = New-Object System.Drawing.Size(55, 22)
-$btnClearLog.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 200)
-$btnClearLog.FlatStyle = "Flat"
-$btnClearLog.Font = New-Object System.Drawing.Font("Segoe UI", 8)
-$form.Controls.Add($btnClearLog)
 
 $btnTestDriver = New-Object System.Windows.Forms.Button
 $btnTestDriver.Text = "Тест драйвер"
@@ -270,13 +253,6 @@ function Set-Status {
     }
 }
 
-function Test-SSHConnection {
-    param([string]$kassaIP, [string]$password)
-    $test = & $plinkPath -batch -ssh -P $config.ssh_port -pw $password -l $config.ssh_user $kassaIP "echo SSH_OK" 2>&1
-    $testStr = ($test -join "`n").Trim()
-    return $testStr -match "SSH_OK"
-}
-
 function Check-Update {
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -311,38 +287,6 @@ function Check-Update {
         Add-Log "Update check failed: $_"
     }
 }
-
-# Test Connection button
-$btnTest.Add_Click({
-    if ($listView.SelectedItems.Count -eq 0) {
-        Add-Log "Select a cash register"
-        return
-    }
-    if ([string]::IsNullOrEmpty($pwBox.Text)) {
-        Add-Log "Enter password"
-        return
-    }
-
-    $btnTest.Enabled = $false
-    $selected = $listView.SelectedItems[0]
-    $kassaIP = $selected.SubItems[1].Text
-    $kassaName = $selected.Text
-    $pw = $pwBox.Text
-
-    Set-Status "Testing..." "yellow"
-    Add-Log "Testing SSH to $kassaName ($kassaIP)..."
-
-    $ok = Test-SSHConnection $kassaIP $pw
-    if ($ok) {
-        Add-Log "SSH OK - connection verified"
-        Set-Status "Test OK" "green"
-    } else {
-        Add-Log "SSH FAILED - check password/IP"
-        Set-Status "Test Failed" "red"
-    }
-
-    $btnTest.Enabled = $true
-})
 
 # Connect button
 $btnConnect.Add_Click({
@@ -459,11 +403,6 @@ $btnUpdate.Add_Click({
     $btnUpdate.Enabled = $true
 })
 
-# Clear log button
-$btnClearLog.Add_Click({
-    $logBox.Clear()
-})
-
 $btnTestDriver.Add_Click({
     if (Test-Path $testDriverPath) {
         Add-Log "Launching test driver..."
@@ -483,7 +422,6 @@ $btnTestDriver.Add_Click({
 Add-Log "Application started v$appVersion"
 Add-Log "FR address: 127.0.0.1:$($config.local_port)"
 Add-Log "Cash registers: $($config.kassas.Count)"
-Add-Log "Type: Test = SSH only, Connect = full tunnel"
 
 # Check for updates on startup
 $updateCheck = {
