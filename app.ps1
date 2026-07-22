@@ -210,7 +210,7 @@ $form.Controls.Add($logLabel)
 
 $btnClearLog = New-Object System.Windows.Forms.Button
 $btnClearLog.Text = "Clear"
-$btnClearLog.Location = New-Object System.Drawing.Point(400, 378)
+$btnClearLog.Location = New-Object System.Drawing.Point(400, 380)
 $btnClearLog.Size = New-Object System.Drawing.Size(55, 22)
 $btnClearLog.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 200)
 $btnClearLog.FlatStyle = "Flat"
