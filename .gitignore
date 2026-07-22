@@ -25,7 +25,8 @@ Desktop.ini
 config.local.json
 
 # Backup copies
-* — копия*
+* - копия*
+* - Copy*
 
 # Old test files
 test-direct2.ps1
