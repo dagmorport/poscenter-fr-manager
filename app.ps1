@@ -5,6 +5,7 @@ Add-Type -AssemblyName System.Drawing
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $config = Get-Content "$scriptDir\config.json" -Raw | ConvertFrom-Json
 $plinkPath = Join-Path $scriptDir "plink.exe"
+$testDriverPath = "C:\Program Files\Poscenter\DrvKKT\Bin\DrvFRTst.exe"
 $repo = "dagmorport/poscenter-fr-manager"
 $branch = "main"
 $baseUrl = "https://raw.githubusercontent.com/$repo/$branch"
@@ -210,12 +211,22 @@ $form.Controls.Add($logLabel)
 
 $btnClearLog = New-Object System.Windows.Forms.Button
 $btnClearLog.Text = "Clear"
-$btnClearLog.Location = New-Object System.Drawing.Point(400, 380)
+$btnClearLog.Location = New-Object System.Drawing.Point(330, 380)
 $btnClearLog.Size = New-Object System.Drawing.Size(55, 22)
 $btnClearLog.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 200)
 $btnClearLog.FlatStyle = "Flat"
 $btnClearLog.Font = New-Object System.Drawing.Font("Segoe UI", 8)
 $form.Controls.Add($btnClearLog)
+
+$btnTestDriver = New-Object System.Windows.Forms.Button
+$btnTestDriver.Text = "Тест драйвер"
+$btnTestDriver.Location = New-Object System.Drawing.Point(395, 378)
+$btnTestDriver.Size = New-Object System.Drawing.Size(75, 25)
+$btnTestDriver.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+$btnTestDriver.ForeColor = [System.Drawing.Color]::White
+$btnTestDriver.FlatStyle = "Flat"
+$btnTestDriver.Font = New-Object System.Drawing.Font("Segoe UI", 7.5, [System.Drawing.FontStyle]::Bold)
+$form.Controls.Add($btnTestDriver)
 
 $logBox = New-Object System.Windows.Forms.TextBox
 $logBox.Location = New-Object System.Drawing.Point(15, 400)
@@ -451,6 +462,21 @@ $btnUpdate.Add_Click({
 # Clear log button
 $btnClearLog.Add_Click({
     $logBox.Clear()
+})
+
+$btnTestDriver.Add_Click({
+    if (Test-Path $testDriverPath) {
+        Add-Log "Launching test driver..."
+        Start-Process -FilePath $testDriverPath
+    } else {
+        Add-Log "Test driver not found: $testDriverPath"
+        [System.Windows.Forms.MessageBox]::Show(
+            "DrvFRTst.exe not found at:`n$testDriverPath`n`nInstall Poscenter DrvKKT driver.",
+            "File Not Found",
+            "OK",
+            "Warning"
+        )
+    }
 })
 
 # Startup
