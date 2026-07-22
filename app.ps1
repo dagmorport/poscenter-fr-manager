@@ -9,6 +9,10 @@ $repo = "dagmorport/poscenter-fr-manager"
 $branch = "main"
 $baseUrl = "https://raw.githubusercontent.com/$repo/$branch"
 
+# Read version
+$localVersionFile = Join-Path $scriptDir "version.txt"
+$appVersion = if (Test-Path $localVersionFile) { (Get-Content $localVersionFile -Raw).Trim() } else { "0.0.0" }
+
 function Write-AppLog {
     param([string]$msg, [string]$level = "INFO")
     $logDir = Join-Path $scriptDir "logs"
@@ -18,92 +22,164 @@ function Write-AppLog {
     Add-Content -Path $logFile -Value "[$ts] [$level] $msg" -Encoding UTF8
 }
 
+# Colors
+$colorBg = [System.Drawing.Color]::FromArgb(240, 240, 240)
+$colorAccent = [System.Drawing.Color]::FromArgb(33, 150, 243)
+$colorGreen = [System.Drawing.Color]::FromArgb(76, 175, 80)
+$colorRed = [System.Drawing.Color]::FromArgb(244, 67, 54)
+$colorPurple = [System.Drawing.Color]::FromArgb(156, 39, 176)
+$colorDark = [System.Drawing.Color]::FromArgb(50, 50, 50)
+$colorLightGray = [System.Drawing.Color]::FromArgb(180, 180, 180)
+
+# Form
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "POScenter FR Manager"
-$form.Size = New-Object System.Drawing.Size(480, 550)
+$form.Text = "POScenter FR Manager v$appVersion"
+$form.Size = New-Object System.Drawing.Size(500, 580)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "Sizable"
 $form.TopMost = $false
-$form.BackColor = [System.Drawing.Color]::FromArgb(245, 245, 245)
+$form.BackColor = $colorBg
+$form.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+
+# Title bar with version
+$titlePanel = New-Object System.Windows.Forms.Panel
+$titlePanel.Location = New-Object System.Drawing.Point(0, 0)
+$titlePanel.Size = New-Object System.Drawing.Size(500, 50)
+$titlePanel.BackColor = $colorAccent
+$form.Controls.Add($titlePanel)
 
 $title = New-Object System.Windows.Forms.Label
 $title.Text = "POScenter FR Manager"
-$title.Font = New-Object System.Drawing.Font("Segoe UI", 14, [System.Drawing.FontStyle]::Bold)
-$title.Location = New-Object System.Drawing.Point(15, 15)
+$title.Font = New-Object System.Drawing.Font("Segoe UI", 13, [System.Drawing.FontStyle]::Bold)
+$title.ForeColor = [System.Drawing.Color]::White
+$title.Location = New-Object System.Drawing.Point(15, 12)
 $title.AutoSize = $true
-$form.Controls.Add($title)
+$titlePanel.Controls.Add($title)
+
+$versionLabel = New-Object System.Windows.Forms.Label
+$versionLabel.Text = "v$appVersion"
+$versionLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+$versionLabel.ForeColor = [System.Drawing.Color]::FromArgb(200, 255, 255, 255)
+$versionLabel.Location = New-Object System.Drawing.Point(420, 16)
+$versionLabel.AutoSize = $true
+$titlePanel.Controls.Add($versionLabel)
+
+# Cash registers group
+$groupKassas = New-Object System.Windows.Forms.GroupBox
+$groupKassas.Text = "Cash Registers"
+$groupKassas.Location = New-Object System.Drawing.Point(15, 60)
+$groupKassas.Size = New-Object System.Drawing.Size(455, 160)
+$groupKassas.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$form.Controls.Add($groupKassas)
 
 $listView = New-Object System.Windows.Forms.ListView
-$listView.Location = New-Object System.Drawing.Point(15, 50)
-$listView.Size = New-Object System.Drawing.Size(430, 150)
+$listView.Location = New-Object System.Drawing.Point(10, 22)
+$listView.Size = New-Object System.Drawing.Size(435, 128)
 $listView.View = "Details"
 $listView.FullRowSelect = $true
-$listView.Columns.Add("Name", 100) | Out-Null
-$listView.Columns.Add("IP Address", 150) | Out-Null
+$listView.GridLines = $true
+$listView.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+$listView.Columns.Add("Name", 120) | Out-Null
+$listView.Columns.Add("IP Address", 160) | Out-Null
 
 foreach ($k in $config.kassas) {
     $item = New-Object System.Windows.Forms.ListViewItem($k.name)
     $item.SubItems.Add($k.ip) | Out-Null
     $listView.Items.Add($item) | Out-Null
 }
-$form.Controls.Add($listView)
+$groupKassas.Controls.Add($listView)
+
+# Password group
+$groupPassword = New-Object System.Windows.Forms.GroupBox
+$groupPassword.Text = "Connection"
+$groupPassword.Location = New-Object System.Drawing.Point(15, 230)
+$groupPassword.Size = New-Object System.Drawing.Size(455, 60)
+$groupPassword.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$form.Controls.Add($groupPassword)
 
 $pwLabel = New-Object System.Windows.Forms.Label
 $pwLabel.Text = "Password:"
-$pwLabel.Location = New-Object System.Drawing.Point(15, 215)
+$pwLabel.Location = New-Object System.Drawing.Point(10, 25)
 $pwLabel.AutoSize = $true
-$form.Controls.Add($pwLabel)
+$groupPassword.Controls.Add($pwLabel)
 
 $pwBox = New-Object System.Windows.Forms.TextBox
-$pwBox.Location = New-Object System.Drawing.Point(85, 212)
-$pwBox.Size = New-Object System.Drawing.Size(200, 25)
+$pwBox.Location = New-Object System.Drawing.Point(80, 22)
+$pwBox.Size = New-Object System.Drawing.Size(220, 25)
 $pwBox.UseSystemPasswordChar = $true
-$form.Controls.Add($pwBox)
+$pwBox.Font = New-Object System.Drawing.Font("Segoe UI", 10)
+$groupPassword.Controls.Add($pwBox)
+
+$lblStatus = New-Object System.Windows.Forms.Label
+$lblStatus.Text = "Ready"
+$lblStatus.Location = New-Object System.Drawing.Point(310, 25)
+$lblStatus.Size = New-Object System.Drawing.Size(130, 20)
+$lblStatus.ForeColor = $colorGreen
+$lblStatus.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$lblStatus.TextAlign = "MiddleRight"
+$groupPassword.Controls.Add($lblStatus)
+
+# Buttons panel
+$btnPanel = New-Object System.Windows.Forms.Panel
+$btnPanel.Location = New-Object System.Drawing.Point(15, 300)
+$btnPanel.Size = New-Object System.Drawing.Size(455, 45)
+$form.Controls.Add($btnPanel)
 
 $btnConnect = New-Object System.Windows.Forms.Button
 $btnConnect.Text = "Connect"
-$btnConnect.Location = New-Object System.Drawing.Point(15, 250)
+$btnConnect.Location = New-Object System.Drawing.Point(0, 5)
 $btnConnect.Size = New-Object System.Drawing.Size(100, 35)
-$btnConnect.BackColor = [System.Drawing.Color]::FromArgb(76, 175, 80)
+$btnConnect.BackColor = $colorGreen
 $btnConnect.ForeColor = [System.Drawing.Color]::White
 $btnConnect.FlatStyle = "Flat"
-$form.Controls.Add($btnConnect)
+$btnConnect.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$btnPanel.Controls.Add($btnConnect)
 
 $btnDisconnect = New-Object System.Windows.Forms.Button
 $btnDisconnect.Text = "Disconnect"
-$btnDisconnect.Location = New-Object System.Drawing.Point(125, 250)
+$btnDisconnect.Location = New-Object System.Drawing.Point(110, 5)
 $btnDisconnect.Size = New-Object System.Drawing.Size(100, 35)
-$btnDisconnect.BackColor = [System.Drawing.Color]::FromArgb(244, 67, 54)
+$btnDisconnect.BackColor = $colorRed
 $btnDisconnect.ForeColor = [System.Drawing.Color]::White
 $btnDisconnect.FlatStyle = "Flat"
-$form.Controls.Add($btnDisconnect)
+$btnDisconnect.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$btnPanel.Controls.Add($btnDisconnect)
 
 $btnCopy = New-Object System.Windows.Forms.Button
 $btnCopy.Text = "Copy FR Address"
-$btnCopy.Location = New-Object System.Drawing.Point(235, 250)
+$btnCopy.Location = New-Object System.Drawing.Point(220, 5)
 $btnCopy.Size = New-Object System.Drawing.Size(130, 35)
-$btnCopy.BackColor = [System.Drawing.Color]::FromArgb(33, 150, 243)
+$btnCopy.BackColor = $colorAccent
 $btnCopy.ForeColor = [System.Drawing.Color]::White
 $btnCopy.FlatStyle = "Flat"
-$form.Controls.Add($btnCopy)
+$btnCopy.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$btnPanel.Controls.Add($btnCopy)
 
 $btnUpdate = New-Object System.Windows.Forms.Button
-$btnUpdate.Text = "Check Update"
-$btnUpdate.Location = New-Object System.Drawing.Point(375, 250)
-$btnUpdate.Size = New-Object System.Drawing.Size(70, 35)
-$btnUpdate.BackColor = [System.Drawing.Color]::FromArgb(156, 39, 176)
+$btnUpdate.Text = "Update"
+$btnUpdate.Location = New-Object System.Drawing.Point(360, 5)
+$btnUpdate.Size = New-Object System.Drawing.Size(80, 35)
+$btnUpdate.BackColor = $colorPurple
 $btnUpdate.ForeColor = [System.Drawing.Color]::White
 $btnUpdate.FlatStyle = "Flat"
-$btnUpdate.Font = New-Object System.Drawing.Font("Segoe UI", 7)
-$form.Controls.Add($btnUpdate)
+$btnUpdate.Font = New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Bold)
+$btnPanel.Controls.Add($btnUpdate)
+
+# Log area
+$logLabel = New-Object System.Windows.Forms.Label
+$logLabel.Text = "Log:"
+$logLabel.Location = New-Object System.Drawing.Point(15, 350)
+$logLabel.AutoSize = $true
+$logLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$form.Controls.Add($logLabel)
 
 $logBox = New-Object System.Windows.Forms.TextBox
-$logBox.Location = New-Object System.Drawing.Point(15, 295)
-$logBox.Size = New-Object System.Drawing.Size(430, 170)
+$logBox.Location = New-Object System.Drawing.Point(15, 370)
+$logBox.Size = New-Object System.Drawing.Size(455, 155)
 $logBox.Multiline = $true
 $logBox.ScrollBars = "Vertical"
 $logBox.ReadOnly = $true
-$logBox.BackColor = [System.Drawing.Color]::FromArgb(34, 34, 34)
+$logBox.BackColor = $colorDark
 $logBox.ForeColor = [System.Drawing.Color]::FromArgb(0, 255, 0)
 $logBox.Font = New-Object System.Drawing.Font("Consolas", 9)
 $form.Controls.Add($logBox)
@@ -115,10 +191,20 @@ function Add-Log {
     Write-AppLog $msg
 }
 
+function Set-Status {
+    param([string]$text, [string]$color = "green")
+    $lblStatus.Text = $text
+    switch ($color) {
+        "green"  { $lblStatus.ForeColor = $colorGreen }
+        "red"    { $lblStatus.ForeColor = $colorRed }
+        "yellow" { $lblStatus.ForeColor = [System.Drawing.Color]::FromArgb(255, 193, 7) }
+        "gray"   { $lblStatus.ForeColor = $colorLightGray }
+    }
+}
+
 function Check-Update {
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        $localVersionFile = Join-Path $scriptDir "version.txt"
         $localVersion = if (Test-Path $localVersionFile) { (Get-Content $localVersionFile -Raw).Trim() } else { "0.0.0" }
         $remoteVersion = (Invoke-WebRequest -Uri "$baseUrl/version.txt" -UseBasicParsing -TimeoutSec 10).Content.Trim()
 
@@ -143,9 +229,11 @@ function Check-Update {
                 Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptDir\update.ps1`"" -Wait
                 [System.Windows.Forms.Application]::Restart()
             }
+        } else {
+            Add-Log "Already up to date (v$localVersion)"
         }
     } catch {
-        # Silent fail - don't annoy user if update check fails
+        Add-Log "Update check failed: $_"
     }
 }
 
@@ -165,6 +253,7 @@ $btnConnect.Add_Click({
     $kassaName = $selected.Text
     $pw = $pwBox.Text
 
+    Set-Status "Connecting..." "yellow"
     Add-Log "=== Connecting to $kassaName ($kassaIP) ==="
 
     # Kill old plink
@@ -181,6 +270,7 @@ $btnConnect.Add_Click({
         Add-Log "   SSH OK"
     } else {
         Add-Log "   FAILED - check password/IP"
+        Set-Status "SSH Failed" "red"
         $btnConnect.Enabled = $true
         return
     }
@@ -223,9 +313,11 @@ $btnConnect.Add_Click({
         Add-Log "   Port $($config.local_port) is listening"
         Add-Log "   === CONNECTED ==="
         Add-Log "   FR address: 127.0.0.1:$($config.local_port)"
+        Set-Status "Connected" "green"
     } else {
         Add-Log "   Port NOT listening"
         Add-Log "   TUNNEL FAILED"
+        Set-Status "Tunnel Failed" "red"
     }
 
     $btnConnect.Enabled = $true
@@ -235,6 +327,7 @@ $btnConnect.Add_Click({
 $btnDisconnect.Add_Click({
     Get-Process plink -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     Add-Log "Disconnected"
+    Set-Status "Disconnected" "gray"
 })
 
 $btnCopy.Add_Click({
@@ -249,15 +342,11 @@ $btnUpdate.Add_Click({
     $btnUpdate.Enabled = $true
 })
 
-Add-Log "Application started"
+Add-Log "Application started v$appVersion"
 Add-Log "FR address: 127.0.0.1:$($config.local_port)"
 Add-Log "Cash registers: $($config.kassas.Count)"
 
 # Check for updates on startup
-$localVersionFile = Join-Path $scriptDir "version.txt"
-$localVersion = if (Test-Path $localVersionFile) { (Get-Content $localVersionFile -Raw).Trim() } else { "unknown" }
-Add-Log "Version: $localVersion"
-
 $updateCheck = {
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
