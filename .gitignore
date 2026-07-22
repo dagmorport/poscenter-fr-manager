@@ -37,6 +37,7 @@ diagnose.ps1
 
 # Internal planning
 plan.md
+SESSION_HISTORY.md
 
 # One-time setup scripts
 copy-key.bat
