@@ -5,6 +5,9 @@ Add-Type -AssemblyName System.Drawing
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $config = Get-Content "$scriptDir\config.json" -Raw | ConvertFrom-Json
 $plinkPath = Join-Path $scriptDir "plink.exe"
+$repo = "dagmorport/poscenter-fr-manager"
+$branch = "main"
+$baseUrl = "https://raw.githubusercontent.com/$repo/$branch"
 
 function Write-AppLog {
     param([string]$msg, [string]$level = "INFO")
@@ -84,6 +87,16 @@ $btnCopy.ForeColor = [System.Drawing.Color]::White
 $btnCopy.FlatStyle = "Flat"
 $form.Controls.Add($btnCopy)
 
+$btnUpdate = New-Object System.Windows.Forms.Button
+$btnUpdate.Text = "Check Update"
+$btnUpdate.Location = New-Object System.Drawing.Point(375, 250)
+$btnUpdate.Size = New-Object System.Drawing.Size(70, 35)
+$btnUpdate.BackColor = [System.Drawing.Color]::FromArgb(156, 39, 176)
+$btnUpdate.ForeColor = [System.Drawing.Color]::White
+$btnUpdate.FlatStyle = "Flat"
+$btnUpdate.Font = New-Object System.Drawing.Font("Segoe UI", 7)
+$form.Controls.Add($btnUpdate)
+
 $logBox = New-Object System.Windows.Forms.TextBox
 $logBox.Location = New-Object System.Drawing.Point(15, 295)
 $logBox.Size = New-Object System.Drawing.Size(430, 170)
@@ -100,6 +113,40 @@ function Add-Log {
     $logBox.AppendText("`r`n$msg")
     $logBox.ScrollToCaret()
     Write-AppLog $msg
+}
+
+function Check-Update {
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $localVersionFile = Join-Path $scriptDir "version.txt"
+        $localVersion = if (Test-Path $localVersionFile) { (Get-Content $localVersionFile -Raw).Trim() } else { "0.0.0" }
+        $remoteVersion = (Invoke-WebRequest -Uri "$baseUrl/version.txt" -UseBasicParsing -TimeoutSec 10).Content.Trim()
+
+        $parts1 = $localVersion.Split('.')
+        $parts2 = $remoteVersion.Split('.')
+        $newer = $false
+        for ($i = 0; $i -lt [Math]::Max($parts1.Count, $parts2.Count); $i++) {
+            $a = if ($i -lt $parts1.Count) { [int]$parts1[$i] } else { 0 }
+            $b = if ($i -lt $parts2.Count) { [int]$parts2[$i] } else { 0 }
+            if ($b -gt $a) { $newer = $true; break }
+            if ($b -lt $a) { break }
+        }
+
+        if ($newer) {
+            $result = [System.Windows.Forms.MessageBox]::Show(
+                "New version available: $remoteVersion (current: $localVersion)`n`nDownload update?",
+                "Update Available",
+                "YesNo",
+                "Information"
+            )
+            if ($result -eq "Yes") {
+                Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptDir\update.ps1`"" -Wait
+                [System.Windows.Forms.Application]::Restart()
+            }
+        }
+    } catch {
+        # Silent fail - don't annoy user if update check fails
+    }
 }
 
 $btnConnect.Add_Click({
@@ -195,8 +242,54 @@ $btnCopy.Add_Click({
     Add-Log "Copied: 127.0.0.1:$($config.local_port)"
 })
 
+$btnUpdate.Add_Click({
+    Add-Log "Checking for updates..."
+    $btnUpdate.Enabled = $false
+    Check-Update
+    $btnUpdate.Enabled = $true
+})
+
 Add-Log "Application started"
 Add-Log "FR address: 127.0.0.1:$($config.local_port)"
 Add-Log "Cash registers: $($config.kassas.Count)"
+
+# Check for updates on startup
+$localVersionFile = Join-Path $scriptDir "version.txt"
+$localVersion = if (Test-Path $localVersionFile) { (Get-Content $localVersionFile -Raw).Trim() } else { "unknown" }
+Add-Log "Version: $localVersion"
+
+$updateCheck = {
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $remoteVersion = (Invoke-WebRequest -Uri "$baseUrl/version.txt" -UseBasicParsing -TimeoutSec 10).Content.Trim()
+        $localV = if (Test-Path "$scriptDir\version.txt") { (Get-Content "$scriptDir\version.txt" -Raw).Trim() } else { "0.0.0" }
+
+        $parts1 = $localV.Split('.')
+        $parts2 = $remoteVersion.Split('.')
+        $newer = $false
+        for ($i = 0; $i -lt [Math]::Max($parts1.Count, $parts2.Count); $i++) {
+            $a = if ($i -lt $parts1.Count) { [int]$parts1[$i] } else { 0 }
+            $b = if ($i -lt $parts2.Count) { [int]$parts2[$i] } else { 0 }
+            if ($b -gt $a) { $newer = $true; break }
+            if ($b -lt $a) { break }
+        }
+
+        if ($newer) {
+            $form.Invoke([Action]{
+                $result = [System.Windows.Forms.MessageBox]::Show(
+                    "New version available: $remoteVersion (current: $localV)`n`nDownload update?",
+                    "Update Available",
+                    "YesNo",
+                    "Information"
+                )
+                if ($result -eq "Yes") {
+                    Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptDir\update.ps1`"" -Wait
+                    [System.Windows.Forms.Application]::Restart()
+                }
+            })
+        }
+    } catch {}
+}
+$updateCheck.BeginInvoke($null, $null) | Out-Null
 
 $form.ShowDialog() | Out-Null
