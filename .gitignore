@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Logs
+logs/
+*.log
+
+# PID files
+pids/
+
+# plink binary (download separately)
+plink.exe
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Config with real values
+config.local.json
+
+# Backup copies
+* — копия*
+
+# Old test files
+test-direct2.ps1
+test-job.ps1
+test-wsh.ps1
+
+# Diagnostic and test files
+test*.ps1
+diagnose.ps1
+
+# Internal planning
+plan.md
+
+# One-time setup scripts
+copy-key.bat
+generate-config.ps1
+setup-key.ps1
+image/
