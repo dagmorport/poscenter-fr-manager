@@ -1,4 +1,4 @@
-# SSH helper - secure plink invocation (password via temp file, never in CLI args)
+# SSH helper - secure plink invocation (password via temp file)
 # Source: . "$PSScriptRoot\ssh.ps1"
 
 function Invoke-Plink {
@@ -14,13 +14,13 @@ function Invoke-Plink {
         throw "plink.exe not found: $PlinkPath"
     }
 
-    $pwFile = [System.IO.Path]::GetTempFileName()
-    $utf8 = New-Object System.Text.UTF8Encoding $false
-    [System.IO.File]::WriteAllText($pwFile, $Password, $utf8)
+    $pwFile = Join-Path $env:TEMP "plink_pw_$([System.Guid]::NewGuid().ToString('N')).tmp"
+    [System.IO.File]::WriteAllBytes($pwFile, [System.Text.Encoding]::ASCII.GetBytes($Password))
 
     try {
-        $args = @("-batch", "-ssh", "-P", $Port, "-pwfile", $pwFile, "-l", $User, $Host, $Command)
-        return & $PlinkPath $args 2>&1
+        $args = "-batch -ssh -P $Port -pwfile `"$pwFile`" -l $User $Host $Command"
+        $output = cmd /c "`"$PlinkPath`" $args 2>&1"
+        return $output
     } finally {
         Remove-Item $pwFile -Force -ErrorAction SilentlyContinue
     }
@@ -41,16 +41,15 @@ function Start-PlinkTunnel {
         throw "plink.exe not found: $PlinkPath"
     }
 
-    $pwFile = [System.IO.Path]::GetTempFileName()
-    $utf8 = New-Object System.Text.UTF8Encoding $false
-    [System.IO.File]::WriteAllText($pwFile, $Password, $utf8)
+    $pwFile = Join-Path $env:TEMP "plink_pw_$([System.Guid]::NewGuid().ToString('N')).tmp"
+    [System.IO.File]::WriteAllBytes($pwFile, [System.Text.Encoding]::ASCII.GetBytes($Password))
 
     $tunnelArgs = "-batch -ssh -P $Port -pwfile `"$pwFile`" -l $User -L ${LocalPort}:${RemoteHost}:${RemotePort} -N $Host"
     $proc = Start-Process -FilePath $PlinkPath -ArgumentList $tunnelArgs -PassThru -WindowStyle Hidden
 
-    # Cleanup temp pwfile after plink reads it
-    $cleanup = { param($pf) Start-Sleep 3; Remove-Item $pf -Force -ErrorAction SilentlyContinue }
-    Start-Job -ScriptBlock $cleanup -ArgumentList $pwFile | Out-Null
+    # Cleanup pwfile after plink reads it
+    $job = { param($pf) Start-Sleep 5; Remove-Item $pf -Force -ErrorAction SilentlyContinue }
+    Start-Job -ScriptBlock $job -ArgumentList $pwFile | Out-Null
 
     return $proc
 }
