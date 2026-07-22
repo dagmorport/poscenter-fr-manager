@@ -34,7 +34,9 @@ test-wsh.ps1
 
 # Diagnostic and test files
 test*.ps1
+test*.py
 diagnose.ps1
+obshee_rukovodstvo_po_nastroite_kkt.pdf
 
 # Internal planning
 plan.md
