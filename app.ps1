@@ -453,8 +453,7 @@ Add-Log "FR address: 127.0.0.1:$($config.local_port)"
 Add-Log "Cash registers: $($config.kassas.Count)"
 
 # Check for updates on startup (async, uses shared Check-Update)
-$updateCheck = { Check-Update }
-$updateCheck.BeginInvoke($null, $null) | Out-Null
+Start-Job -ScriptBlock { Check-Update } | Out-Null
 
 $form.ShowDialog() | Out-Null
 $timer.Stop()
