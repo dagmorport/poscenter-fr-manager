@@ -201,46 +201,32 @@ $btnUpdate.Font = New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.
 $btnPanel.Controls.Add($btnUpdate)
 
 # Log area
-$logPanel = New-Object System.Windows.Forms.Panel
-$logPanel.Location = New-Object System.Drawing.Point(15, 380)
-$logPanel.Size = New-Object System.Drawing.Size(455, 200)
-$form.Controls.Add($logPanel)
-
-$logHeader = New-Object System.Windows.Forms.Panel
-$logHeader.Location = New-Object System.Drawing.Point(0, 0)
-$logHeader.Size = New-Object System.Drawing.Size(455, 25)
-$logHeader.BackColor = $colorDark
-$logPanel.Controls.Add($logHeader)
-
 $logLabel = New-Object System.Windows.Forms.Label
 $logLabel.Text = "Log"
-$logLabel.Location = New-Object System.Drawing.Point(10, 4)
+$logLabel.Location = New-Object System.Drawing.Point(15, 380)
 $logLabel.AutoSize = $true
-$logLabel.ForeColor = [System.Drawing.Color]::White
 $logLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
-$logHeader.Controls.Add($logLabel)
+$form.Controls.Add($logLabel)
 
 $btnClearLog = New-Object System.Windows.Forms.Button
 $btnClearLog.Text = "Clear"
-$btnClearLog.Location = New-Object System.Drawing.Point(365, 2)
-$btnClearLog.Size = New-Object System.Drawing.Size(55, 20)
-$btnClearLog.BackColor = [System.Drawing.Color]::FromArgb(80, 80, 80)
-$btnClearLog.ForeColor = [System.Drawing.Color]::White
+$btnClearLog.Location = New-Object System.Drawing.Point(400, 378)
+$btnClearLog.Size = New-Object System.Drawing.Size(55, 22)
+$btnClearLog.BackColor = [System.Drawing.Color]::FromArgb(200, 200, 200)
 $btnClearLog.FlatStyle = "Flat"
-$btnClearLog.Font = New-Object System.Drawing.Font("Segoe UI", 7)
-$logHeader.Controls.Add($btnClearLog)
+$btnClearLog.Font = New-Object System.Drawing.Font("Segoe UI", 8)
+$form.Controls.Add($btnClearLog)
 
 $logBox = New-Object System.Windows.Forms.TextBox
-$logBox.Location = New-Object System.Drawing.Point(0, 25)
-$logBox.Size = New-Object System.Drawing.Size(455, 175)
+$logBox.Location = New-Object System.Drawing.Point(15, 400)
+$logBox.Size = New-Object System.Drawing.Size(455, 180)
 $logBox.Multiline = $true
 $logBox.ScrollBars = "Vertical"
 $logBox.ReadOnly = $true
 $logBox.BackColor = $colorDark
 $logBox.ForeColor = [System.Drawing.Color]::FromArgb(0, 255, 0)
 $logBox.Font = New-Object System.Drawing.Font("Consolas", 9)
-$logBox.BorderStyle = "None"
-$logPanel.Controls.Add($logBox)
+$form.Controls.Add($logBox)
 
 # Timer for connection duration
 $timer = New-Object System.Windows.Forms.Timer
