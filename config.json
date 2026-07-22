@@ -1,0 +1,12 @@
+{
+  "fr_ip": "192.168.X.X",
+  "fr_port": 7778,
+  "local_port": 17778,
+  "ssh_port": 22,
+  "ssh_user": "root",
+  "plink_path": "",
+  "kassas": [
+    {"name": "KASSA_1", "ip": "192.168.1.100"},
+    {"name": "KASSA_2", "ip": "192.168.1.101"}
+  ]
+}
