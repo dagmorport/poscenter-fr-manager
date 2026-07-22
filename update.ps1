@@ -10,6 +10,8 @@ $branch = "main"
 $baseUrl = "https://raw.githubusercontent.com/$repo/$branch"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
+. "$scriptDir\lib\update.ps1"
+
 function Write-UpdateLog {
     param([string]$msg)
     $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
@@ -43,29 +45,14 @@ Write-Host "Local version: $localVersion" -ForegroundColor Gray
 # Check remote version
 Write-Host "Checking for updates..." -ForegroundColor Yellow
 try {
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $remoteVersion = (Invoke-WebRequest -Uri "$baseUrl/version.txt" -UseBasicParsing -TimeoutSec 10).Content.Trim()
+    $remoteVersion = Get-RemoteVersion -BaseUrl $baseUrl
     Write-Host "Remote version: $remoteVersion" -ForegroundColor Gray
 } catch {
     Write-Host "Failed to check for updates: $_" -ForegroundColor Red
     exit 1
 }
 
-# Compare versions
-function Compare-Versions {
-    param([string]$v1, [string]$v2)
-    $parts1 = $v1.Split('.')
-    $parts2 = $v2.Split('.')
-    for ($i = 0; $i -lt [Math]::Max($parts1.Count, $parts2.Count); $i++) {
-        $a = if ($i -lt $parts1.Count) { [int]$parts1[$i] } else { 0 }
-        $b = if ($i -lt $parts2.Count) { [int]$parts2[$i] } else { 0 }
-        if ($a -lt $b) { return -1 }
-        if ($a -gt $b) { return 1 }
-    }
-    return 0
-}
-
-$cmp = Compare-Versions $localVersion $remoteVersion
+$cmp = Compare-SemVer $localVersion $remoteVersion
 
 if ($cmp -ge 0) {
     Write-Host ""

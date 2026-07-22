@@ -11,6 +11,7 @@ $configFile = if (Test-Path $localConfig) { $localConfig } else { Join-Path $scr
 # Import modules
 . "$scriptDir\lib\config.ps1"
 . "$scriptDir\lib\ssh.ps1"
+. "$scriptDir\lib\update.ps1"
 
 try {
     $config = Read-Config $configFile
@@ -267,31 +268,22 @@ function Set-Status {
 
 function Check-Update {
     try {
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         $localVersion = if (Test-Path $localVersionFile) { (Get-Content $localVersionFile -Raw).Trim() } else { "0.0.0" }
-        $remoteVersion = (Invoke-WebRequest -Uri "$baseUrl/version.txt" -UseBasicParsing -TimeoutSec 10).Content.Trim()
+        $remoteVersion = Get-RemoteVersion -BaseUrl $baseUrl
 
-        $parts1 = $localVersion.Split('.')
-        $parts2 = $remoteVersion.Split('.')
-        $newer = $false
-        for ($i = 0; $i -lt [Math]::Max($parts1.Count, $parts2.Count); $i++) {
-            $a = if ($i -lt $parts1.Count) { [int]$parts1[$i] } else { 0 }
-            $b = if ($i -lt $parts2.Count) { [int]$parts2[$i] } else { 0 }
-            if ($b -gt $a) { $newer = $true; break }
-            if ($b -lt $a) { break }
-        }
-
-        if ($newer) {
-            $result = [System.Windows.Forms.MessageBox]::Show(
-                "New version available: $remoteVersion (current: $localVersion)`n`nDownload update?",
-                "Update Available",
-                "YesNo",
-                "Information"
-            )
-            if ($result -eq "Yes") {
-                Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptDir\update.ps1`"" -Wait
-                [System.Windows.Forms.Application]::Restart()
-            }
+        if (Test-UpdateAvailable $localVersion $remoteVersion) {
+            $form.Invoke([Action]{
+                $result = [System.Windows.Forms.MessageBox]::Show(
+                    "New version available: $remoteVersion (current: $localVersion)`n`nDownload update?",
+                    "Update Available",
+                    "YesNo",
+                    "Information"
+                )
+                if ($result -eq "Yes") {
+                    Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptDir\update.ps1`"" -Wait
+                    [System.Windows.Forms.Application]::Restart()
+                }
+            })
         } else {
             Add-Log "Already up to date (v$localVersion)"
         }
@@ -469,39 +461,8 @@ Add-Log "Application started v$appVersion"
 Add-Log "FR address: 127.0.0.1:$($config.local_port)"
 Add-Log "Cash registers: $($config.kassas.Count)"
 
-# Check for updates on startup
-$updateCheck = {
-    try {
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        $remoteVersion = (Invoke-WebRequest -Uri "$baseUrl/version.txt" -UseBasicParsing -TimeoutSec 10).Content.Trim()
-        $localV = if (Test-Path "$scriptDir\version.txt") { (Get-Content "$scriptDir\version.txt" -Raw).Trim() } else { "0.0.0" }
-
-        $parts1 = $localV.Split('.')
-        $parts2 = $remoteVersion.Split('.')
-        $newer = $false
-        for ($i = 0; $i -lt [Math]::Max($parts1.Count, $parts2.Count); $i++) {
-            $a = if ($i -lt $parts1.Count) { [int]$parts1[$i] } else { 0 }
-            $b = if ($i -lt $parts2.Count) { [int]$parts2[$i] } else { 0 }
-            if ($b -gt $a) { $newer = $true; break }
-            if ($b -lt $a) { break }
-        }
-
-        if ($newer) {
-            $form.Invoke([Action]{
-                $result = [System.Windows.Forms.MessageBox]::Show(
-                    "New version available: $remoteVersion (current: $localV)`n`nDownload update?",
-                    "Update Available",
-                    "YesNo",
-                    "Information"
-                )
-                if ($result -eq "Yes") {
-                    Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptDir\update.ps1`"" -Wait
-                    [System.Windows.Forms.Application]::Restart()
-                }
-            })
-        }
-    } catch {}
-}
+# Check for updates on startup (async, uses shared Check-Update)
+$updateCheck = { Check-Update }
 $updateCheck.BeginInvoke($null, $null) | Out-Null
 
 $form.ShowDialog() | Out-Null
