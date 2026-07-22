@@ -308,13 +308,8 @@ $btnConnect.Add_Click({
 
     # Test SSH
     Add-Log "1. Testing SSH..."
-    try {
-        $test = Invoke-Plink -PlinkPath $plinkPath -Host $kassaIP -Port $config.ssh_port `
-            -User $config.ssh_user -Password $pw -Command "echo SSH_OK"
-        $testStr = ($test -join "`n").Trim()
-    } catch {
-        $testStr = ""
-    }
+    $test = & $plinkPath -batch -ssh -P $config.ssh_port -pw $pw -l $config.ssh_user $kassaIP "echo SSH_OK" 2>&1
+    $testStr = ($test -join "`n").Trim()
 
     if ($testStr -match "SSH_OK") {
         Add-Log "   SSH OK"
@@ -328,23 +323,15 @@ $btnConnect.Add_Click({
 
     # Disable graphics
     Add-Log "2. Disabling graphics..."
-    try {
-        $xorgOut = Invoke-Plink -PlinkPath $plinkPath -Host $kassaIP -Port $config.ssh_port `
-            -User $config.ssh_user -Password $pw -Command "pgrep Xorg | head -1"
-        $xorgStr = ($xorgOut -join "`n").Trim()
-    } catch {
-        $xorgStr = ""
-    }
+    $xorgOut = & $plinkPath -batch -ssh -P $config.ssh_port -pw $pw -l $config.ssh_user $kassaIP "pgrep Xorg | head -1" 2>&1
+    $xorgStr = ($xorgOut -join "`n").Trim()
 
     $pidStr = ""
     if ($xorgStr -match '(\d+)') { $pidStr = $Matches[1] }
 
     if ($pidStr -match '^\d+$') {
         Add-Log "   Found Xorg PID: $pidStr"
-        try {
-            Invoke-Plink -PlinkPath $plinkPath -Host $kassaIP -Port $config.ssh_port `
-                -User $config.ssh_user -Password $pw -Command "sudo kill -INT $pidStr" | Out-Null
-        } catch {}
+        & $plinkPath -batch -ssh -P $config.ssh_port -pw $pw -l $config.ssh_user $kassaIP "sudo kill -INT $pidStr" 2>&1 | Out-Null
         Add-Log "   Graphics killed"
     } else {
         Add-Log "   Xorg not running (already disabled)"
@@ -360,18 +347,9 @@ $btnConnect.Add_Click({
     Stop-PlinkTunnels
     Start-Sleep -Milliseconds 500
 
-    try {
-        $proc = Start-PlinkTunnel -PlinkPath $plinkPath -Host $kassaIP -Port $config.ssh_port `
-            -User $config.ssh_user -Password $pw `
-            -LocalPort $config.local_port -RemoteHost $config.fr_ip -RemotePort $config.fr_port
-        Add-Log "   plink started (PID: $($proc.Id))"
-    } catch {
-        Add-Log "   FAILED to start plink: $_"
-        Set-Status "Tunnel Failed" "red"
-        $pwBox.Text = [string]::Empty
-        $btnConnect.Enabled = $true
-        return
-    }
+    $tunnelArgs = "-batch -ssh -P $($config.ssh_port) -pw $pw -l $($config.ssh_user) -L $($config.local_port):$($config.fr_ip):$($config.fr_port) -N $kassaIP"
+    $proc = Start-Process -FilePath $plinkPath -ArgumentList $tunnelArgs -PassThru -WindowStyle Hidden
+    Add-Log "   plink started (PID: $($proc.Id))"
 
     # Retry port check (up to 10 seconds)
     $maxRetries = 10
