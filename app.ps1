@@ -5,7 +5,9 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$config = Get-Content "$scriptDir\config.json" -Raw | ConvertFrom-Json
+$localConfig = Join-Path $scriptDir "config.local.json"
+$configFile = if (Test-Path $localConfig) { $localConfig } else { Join-Path $scriptDir "config.json" }
+$config = Get-Content $configFile -Raw | ConvertFrom-Json
 $plinkPath = Join-Path $scriptDir "plink.exe"
 $testDriverPath = "C:\Program Files\Poscenter\DrvKKT\Bin\DrvFRTst.exe"
 $repo = "dagmorport/poscenter-fr-manager"
