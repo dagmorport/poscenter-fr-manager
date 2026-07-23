@@ -4,7 +4,7 @@
 
 function Send-FrCommand {
     param(
-        [string]$Host,
+        [string]$FrHost,
         [int]$Port,
         [byte[]]$Command,
         [int]$TimeoutMs = 3000
@@ -13,7 +13,7 @@ function Send-FrCommand {
     try {
         $client.ReceiveTimeout = $TimeoutMs
         $client.SendTimeout = $TimeoutMs
-        $client.Connect($Host, $Port)
+        $client.Connect($FrHost, $Port)
 
         $stream = $client.GetStream()
         $stream.Write($Command, 0, $Command.Count)
@@ -35,8 +35,8 @@ function Send-FrCommand {
 }
 
 function Get-FrShortStatus {
-    param([string]$Host, [int]$Port, [byte]$Password = 0x1E)
-    $resp = Send-FrCommand $Host $Port @(0x10, $Password)
+    param([string]$FrHost, [int]$Port, [byte]$Password = 0x1E)
+    $resp = Send-FrCommand $FrHost $Port @(0x10, $Password)
     if ($resp.Count -lt 3 -or $resp[1] -ne 0) { return $null }
 
     $b = $resp
@@ -61,8 +61,8 @@ function Get-FrShortStatus {
 }
 
 function Get-FrFullStatus {
-    param([string]$Host, [int]$Port, [byte]$Password = 0x1E)
-    $resp = Send-FrCommand $Host $Port @(0x11, $Password)
+    param([string]$FrHost, [int]$Port, [byte]$Password = 0x1E)
+    $resp = Send-FrCommand $FrHost $Port @(0x11, $Password)
     if ($resp.Count -lt 21 -or $resp[1] -ne 0) { return $null }
 
     $b = $resp
@@ -79,8 +79,8 @@ function Get-FrFullStatus {
 }
 
 function Get-FrDeviceType {
-    param([string]$Host, [int]$Port)
-    $resp = Send-FrCommand $Host $Port @(0xFC)
+    param([string]$FrHost, [int]$Port)
+    $resp = Send-FrCommand $FrHost $Port @(0xFC)
     if ($resp.Count -lt 3) { return $null }
     return [System.Text.Encoding]::ASCII.GetString($resp[2..($resp.Count-1)]).TrimEnd([char]0)
 }
