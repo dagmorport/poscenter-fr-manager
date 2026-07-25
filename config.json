@@ -6,6 +6,9 @@
   "ssh_user": "root",
   "ssh_password": "",
   "plink_path": "",
+  "test_driver_path": "C:\\Program Files\\Poscenter\\DrvKKT\\Bin\\DrvFRTst.exe",
+  "connection_timeout": 10,
+  "terminal_name": "Терминал Сбербанк",
   "kassas": [
     {"name": "KASSA_1", "ip": "192.168.1.100"},
     {"name": "KASSA_2", "ip": "192.168.1.101"}

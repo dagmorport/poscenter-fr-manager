@@ -21,7 +21,7 @@ try {
     exit 1
 }
 $plinkPath = Join-Path $scriptDir "plink.exe"
-$testDriverPath = "C:\Program Files\Poscenter\DrvKKT\Bin\DrvFRTst.exe"
+$testDriverPath = $config.test_driver_path
 $repo = "dagmorport/poscenter-fr-manager"
 $branch = "main"
 $baseUrl = "https://raw.githubusercontent.com/$repo/$branch"
@@ -30,12 +30,15 @@ $baseUrl = "https://raw.githubusercontent.com/$repo/$branch"
 $localVersionFile = Join-Path $scriptDir "version.txt"
 $appVersion = if (Test-Path $localVersionFile) { (Get-Content $localVersionFile -Raw).Trim() } else { "0.0.0" }
 
-# Global state
-$script:connected = $false
-$script:connectTime = $null
-$script:connectedKassa = ""
-$script:connectedIP = ""
-$script:connectedPw = ""
+# Global state (PSObject for better debugging)
+$State = [PSCustomObject]@{
+    Connected = $false
+    ConnectTime = $null
+    ConnectedKassa = ""
+    ConnectedIP = ""
+    ConnectedPw = ""
+    TunnelPID = $null
+}
 
 # Colors - Material Design light palette
 $colorPrimary   = [System.Drawing.Color]::FromArgb(25, 118, 210)
@@ -45,13 +48,10 @@ $colorSuccess   = [System.Drawing.Color]::FromArgb(76, 175, 80)
 $colorError     = [System.Drawing.Color]::FromArgb(244, 67, 54)
 $colorWarning   = [System.Drawing.Color]::FromArgb(255, 152, 0)
 $colorDark      = [System.Drawing.Color]::FromArgb(33, 33, 33)
-
-# Backwards compat aliases
 $colorAccent    = $colorPrimary
 $colorGreen     = $colorSuccess
 $colorRed       = $colorError
 $colorOrange    = $colorWarning
-$colorPurple    = [System.Drawing.Color]::FromArgb(156, 39, 176)
 $colorLightGray = [System.Drawing.Color]::FromArgb(158, 158, 158)
 
 # Form
@@ -89,7 +89,7 @@ $titlePanel.Controls.Add($versionLabel)
 
 # Cash registers group
 $groupKassas = New-Object System.Windows.Forms.GroupBox
-$groupKassas.Text = [char]0x041A + [char]0x0430 + [char]0x0441 + [char]0x0441 + [char]0x044B
+$groupKassas.Text = "Кассы"
 $groupKassas.Location = New-Object System.Drawing.Point(15, 60)
 $groupKassas.Size = New-Object System.Drawing.Size(455, 150)
 $groupKassas.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
@@ -115,7 +115,7 @@ $groupKassas.Controls.Add($listView)
 
 # System Commands group
 $groupRemote = New-Object System.Windows.Forms.GroupBox
-$groupRemote.Text = [char]0x0421 + [char]0x0438 + [char]0x0441 + [char]0x0442 + [char]0x0435 + [char]0x043C + [char]0x043D + [char]0x044B + [char]0x0435 + " " + [char]0x043A + [char]0x043E + [char]0x043C + [char]0x0430 + [char]0x043D + [char]0x0434 + [char]0x044B
+$groupRemote.Text = "Системные команды"
 $groupRemote.Location = New-Object System.Drawing.Point(15, 220)
 $groupRemote.Size = New-Object System.Drawing.Size(455, 75)
 $groupRemote.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
@@ -129,7 +129,7 @@ $cmbCommands.Font = New-Object System.Drawing.Font("Segoe UI", 9)
 $groupRemote.Controls.Add($cmbCommands)
 
 $btnExecCmd = New-Object System.Windows.Forms.Button
-$btnExecCmd.Text = [char]0x0412 + [char]0x044B + [char]0x043F + [char]0x043E + [char]0x043B + [char]0x043D + [char]0x0438 + [char]0x0442 + [char]0x044C
+$btnExecCmd.Text = "Выполнить"
 $btnExecCmd.Location = New-Object System.Drawing.Point(300, 22)
 $btnExecCmd.Size = New-Object System.Drawing.Size(140, 25)
 $btnExecCmd.BackColor = $colorPrimary
@@ -149,7 +149,7 @@ $groupRemote.Controls.Add($lblCmdDesc)
 
 # Terminal Commands group
 $groupTerminal = New-Object System.Windows.Forms.GroupBox
-$groupTerminal.Text = [char]0x0422 + [char]0x0435 + [char]0x0440 + [char]0x043C + [char]0x0438 + [char]0x043D + [char]0x0430 + [char]0x043B + " " + [char]0x0421 + [char]0x0431 + [char]0x0435 + [char]0x0440 + [char]0x0431 + [char]0x0430 + [char]0x043D + [char]0x043A
+$groupTerminal.Text = $config.terminal_name
 $groupTerminal.Location = New-Object System.Drawing.Point(15, 305)
 $groupTerminal.Size = New-Object System.Drawing.Size(455, 75)
 $groupTerminal.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
@@ -163,7 +163,7 @@ $cmbTerminal.Font = New-Object System.Drawing.Font("Segoe UI", 9)
 $groupTerminal.Controls.Add($cmbTerminal)
 
 $btnExecTerminal = New-Object System.Windows.Forms.Button
-$btnExecTerminal.Text = [char]0x0412 + [char]0x044B + [char]0x043F + [char]0x043E + [char]0x043B + [char]0x043D + [char]0x0438 + [char]0x0442 + [char]0x044C
+$btnExecTerminal.Text = "Выполнить"
 $btnExecTerminal.Location = New-Object System.Drawing.Point(300, 22)
 $btnExecTerminal.Size = New-Object System.Drawing.Size(140, 25)
 $btnExecTerminal.BackColor = $colorSuccess
@@ -198,11 +198,7 @@ $cmbCommands.Add_SelectedIndexChanged({
     if ($cmbCommands.SelectedIndex -ge 0) {
         $sel = $cmbCommands.SelectedItem
         $cmdObj = $config.remote_commands | Where-Object { $_.label -eq $sel } | Select-Object -First 1
-        if ($cmdObj -and $cmdObj.description) {
-            $lblCmdDesc.Text = $cmdObj.description
-        } else {
-            $lblCmdDesc.Text = ""
-        }
+        $lblCmdDesc.Text = if ($cmdObj -and $cmdObj.description) { $cmdObj.description } else { "" }
     }
 })
 
@@ -210,11 +206,7 @@ $cmbTerminal.Add_SelectedIndexChanged({
     if ($cmbTerminal.SelectedIndex -ge 0) {
         $sel = $cmbTerminal.SelectedItem
         $cmdObj = $config.remote_commands | Where-Object { $_.label -eq $sel } | Select-Object -First 1
-        if ($cmdObj -and $cmdObj.description) {
-            $lblTermDesc.Text = $cmdObj.description
-        } else {
-            $lblTermDesc.Text = ""
-        }
+        $lblTermDesc.Text = if ($cmdObj -and $cmdObj.description) { $cmdObj.description } else { "" }
     }
 })
 
@@ -224,9 +216,8 @@ $btnPanel.Location = New-Object System.Drawing.Point(15, 390)
 $btnPanel.Size = New-Object System.Drawing.Size(455, 55)
 $form.Controls.Add($btnPanel)
 
-# Row 1 - Primary actions
 $btnConnect = New-Object System.Windows.Forms.Button
-$btnConnect.Text = [char]0x041F + [char]0x043E + [char]0x0434 + [char]0x043A + [char]0x043B
+$btnConnect.Text = "Подкл"
 $btnConnect.Location = New-Object System.Drawing.Point(0, 2)
 $btnConnect.Size = New-Object System.Drawing.Size(100, 25)
 $btnConnect.BackColor = $colorPrimary
@@ -237,7 +228,7 @@ $btnConnect.Cursor = [System.Windows.Forms.Cursors]::Hand
 $btnPanel.Controls.Add($btnConnect)
 
 $btnDisconnect = New-Object System.Windows.Forms.Button
-$btnDisconnect.Text = [char]0x0421 + [char]0x0442 + [char]0x043E + [char]0x043F
+$btnDisconnect.Text = "Стоп"
 $btnDisconnect.Location = New-Object System.Drawing.Point(110, 2)
 $btnDisconnect.Size = New-Object System.Drawing.Size(100, 25)
 $btnDisconnect.BackColor = $colorRed
@@ -247,9 +238,8 @@ $btnDisconnect.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Draw
 $btnDisconnect.Cursor = [System.Windows.Forms.Cursors]::Hand
 $btnPanel.Controls.Add($btnDisconnect)
 
-# Row 2 - Utility actions
 $btnTestDriver = New-Object System.Windows.Forms.Button
-$btnTestDriver.Text = [char]0x0422 + [char]0x0435 + [char]0x0441 + [char]0x0442 + " " + [char]0x0434 + [char]0x0440 + [char]0x0430 + [char]0x0439 + [char]0x0432 + [char]0x0435 + [char]0x0440
+$btnTestDriver.Text = "Тест драйвер"
 $btnTestDriver.Location = New-Object System.Drawing.Point(0, 30)
 $btnTestDriver.Size = New-Object System.Drawing.Size(150, 22)
 $btnTestDriver.BackColor = $colorLightGray
@@ -260,7 +250,7 @@ $btnTestDriver.Cursor = [System.Windows.Forms.Cursors]::Hand
 $btnPanel.Controls.Add($btnTestDriver)
 
 $btnUpdate = New-Object System.Windows.Forms.Button
-$btnUpdate.Text = [char]0x041E + [char]0x0431 + [char]0x043D + [char]0x043E + [char]0x0432 + [char]0x0438 + [char]0x0442 + [char]0x044C
+$btnUpdate.Text = "Обновить"
 $btnUpdate.Location = New-Object System.Drawing.Point(160, 30)
 $btnUpdate.Size = New-Object System.Drawing.Size(100, 22)
 $btnUpdate.BackColor = $colorLightGray
@@ -272,14 +262,14 @@ $btnPanel.Controls.Add($btnUpdate)
 
 # Log area
 $logLabel = New-Object System.Windows.Forms.Label
-$logLabel.Text = [char]0x0416 + [char]0x0443 + [char]0x0440 + [char]0x043D + [char]0x0430 + [char]0x043B
+$logLabel.Text = "Журнал"
 $logLabel.Location = New-Object System.Drawing.Point(15, 455)
 $logLabel.AutoSize = $true
 $logLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($logLabel)
 
 $btnClearLog = New-Object System.Windows.Forms.Button
-$btnClearLog.Text = [char]0x041E + [char]0x0447 + [char]0x0438 + [char]0x0441 + [char]0x0442 + [char]0x0438 + [char]0x0442 + [char]0x044C
+$btnClearLog.Text = "Очистить"
 $btnClearLog.Location = New-Object System.Drawing.Point(420, 453)
 $btnClearLog.Size = New-Object System.Drawing.Size(50, 20)
 $btnClearLog.BackColor = $colorLightGray
@@ -289,9 +279,7 @@ $btnClearLog.Font = New-Object System.Drawing.Font("Segoe UI", 7)
 $btnClearLog.Cursor = [System.Windows.Forms.Cursors]::Hand
 $form.Controls.Add($btnClearLog)
 
-$btnClearLog.Add_Click({
-    $logBox.Clear()
-})
+$btnClearLog.Add_Click({ $logBox.Clear() })
 
 $logBox = New-Object System.Windows.Forms.TextBox
 $logBox.Location = New-Object System.Drawing.Point(15, 477)
@@ -304,271 +292,76 @@ $logBox.ForeColor = [System.Drawing.Color]::FromArgb(0, 255, 0)
 $logBox.Font = New-Object System.Drawing.Font("Consolas", 9)
 $form.Controls.Add($logBox)
 
+# Helper functions
 function Add-Log {
     param([string]$msg)
     Add-UILog -LogBox $logBox -msg $msg
 }
 
-function Check-Update {
-    try {
-        $localVersion = if (Test-Path $localVersionFile) { (Get-Content $localVersionFile -Raw).Trim() } else { "0.0.0" }
-        $remoteVersion = Get-RemoteVersion -BaseUrl $baseUrl
-
-        if (Test-UpdateAvailable $localVersion $remoteVersion) {
-            $form.Invoke([Action]{
-                $result = [System.Windows.Forms.MessageBox]::Show(
-                    "New version available: $remoteVersion (current: $localVersion)`n`nDownload update?",
-                    "Update Available",
-                    "YesNo",
-                    "Information"
-                )
-                if ($result -eq "Yes") {
-                    Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptDir\update.ps1`"" -Wait
-                    [System.Windows.Forms.Application]::Restart()
-                }
-            })
-        } else {
-            Add-Log "Already up to date (v$localVersion)"
-        }
-    } catch {
-        Add-Log "Update check failed: $_"
+# Highlight active kassa
+function Set-ActiveKassa {
+    param($item, [bool]$active)
+    if ($active) {
+        $item.BackColor = [System.Drawing.Color]::FromArgb(200, 230, 201)
+        $item.ForeColor = [System.Drawing.Color]::FromArgb(27, 94, 32)
+    } else {
+        $item.BackColor = [System.Drawing.Color]::Empty
+        $item.ForeColor = [System.Drawing.Color]::Empty
     }
 }
 
-# Connect button
-$btnConnect.Add_Click({
-    if ($listView.SelectedItems.Count -eq 0) {
-        Add-Log "Select a cash register"
-        return
+# Stop plink by saved PID (precise kill)
+function Stop-PlinkTunnels {
+    if ($State.TunnelPID) {
+        try {
+            Stop-Process -Id $State.TunnelPID -Force -ErrorAction SilentlyContinue
+        } catch {}
+        $State.TunnelPID = $null
     }
+    # Fallback: kill any remaining plink processes
+    Get-Process plink -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+}
 
-    $btnConnect.Enabled = $false
-    $selected = $listView.SelectedItems[0]
-    $kassaIP = $selected.SubItems[1].Text
-    $kassaName = $selected.Text
-    $pw = $config.ssh_password
+# Execute selected command (DRY - shared logic)
+function Invoke-SelectedCommand {
+    param(
+        [System.Windows.Forms.ComboBox]$comboBox,
+        [System.Windows.Forms.Button]$btnExec
+    )
 
-    Add-Log "=== Connecting to $kassaName ($kassaIP) ==="
-
-    # Kill old plink
-    Stop-PlinkTunnels
-    Start-Sleep -Milliseconds 500
-
-    # Test SSH
-    Add-Log "1. Testing SSH..."
-    $test = & $plinkPath -batch -ssh -P $config.ssh_port -pw $pw -l $config.ssh_user $kassaIP "echo SSH_OK" 2>&1
-    $testStr = ($test -join "`n").Trim()
-
-    if ($testStr -match "SSH_OK") {
-        Add-Log "   SSH OK"
-    } else {
-        Add-Log "   FAILED - check password/IP"
-        $btnConnect.Enabled = $true
-        return
-    }
-
-    # Disable graphics
-    Add-Log "2. Disabling graphics..."
-    $xorgOut = & $plinkPath -batch -ssh -P $config.ssh_port -pw $pw -l $config.ssh_user $kassaIP "pgrep Xorg | head -1" 2>&1
-    $xorgStr = ($xorgOut -join "`n").Trim()
-
-    $pidStr = ""
-    if ($xorgStr -match '(\d+)') { $pidStr = $Matches[1] }
-
-    if ($pidStr -match '^\d+$') {
-        Add-Log "   Found Xorg PID: $pidStr"
-        & $plinkPath -batch -ssh -P $config.ssh_port -pw $pw -l $config.ssh_user $kassaIP "sudo kill -INT $pidStr" 2>&1 | Out-Null
-        Add-Log "   Graphics killed"
-    } else {
-        Add-Log "   Xorg not running (already disabled)"
-    }
-
-    Start-Sleep -Seconds 1
-
-    # Start tunnel
-    Add-Log "3. Starting tunnel..."
-    Add-Log "   FR: $($config.fr_ip):$($config.fr_port)"
-    Add-Log "   Local port: $($config.local_port)"
-
-    Stop-PlinkTunnels
-    Start-Sleep -Milliseconds 500
-
-    $tunnelArgs = "-batch -ssh -P $($config.ssh_port) -pw $pw -l $($config.ssh_user) -L $($config.local_port):$($config.fr_ip):$($config.fr_port) -N $kassaIP"
-    $proc = Start-Process -FilePath $plinkPath -ArgumentList $tunnelArgs -PassThru -WindowStyle Hidden
-    Add-Log "   plink started (PID: $($proc.Id))"
-
-    # Retry port check (up to 10 seconds)
-    $maxRetries = 10
-    $portReady = $false
-    for ($i = 1; $i -le $maxRetries; $i++) {
-        Start-Sleep -Seconds 1
-        $portCheck = netstat -ano | findstr ":$($config.local_port).*LISTEN"
-        if ($portCheck) {
-            $portReady = $true
-            Add-Log "   Port listening after ${i}s"
-            break
-        }
-    }
-
-    if ($portReady) {
-        Add-Log "   === CONNECTED ==="
-        $script:connected = $true
-        $script:connectTime = Get-Date
-        $script:connectedKassa = $kassaName
-        $script:connectedIP = $kassaIP
-        $script:connectedPw = $pw
-    } else {
-        Add-Log "   Port NOT listening after ${maxRetries}s"
-        Add-Log "   TUNNEL FAILED"
-        Stop-PlinkTunnels
-    }
-
-    $btnConnect.Enabled = $true
-    Write-AppLog "Connection attempt completed"
-})
-
-# Disconnect button
-$btnDisconnect.Add_Click({
-    Stop-PlinkTunnels
-    Add-Log "Disconnected"
-    $script:connected = $false
-    $script:connectTime = $null
-    $script:connectedIP = ""
-    $script:connectedPw = ""
-})
-
-# Update button
-$btnUpdate.Add_Click({
-    Add-Log "Checking for updates..."
-    $btnUpdate.Enabled = $false
-    Check-Update
-    $btnUpdate.Enabled = $true
-})
-
-$btnTestDriver.Add_Click({
-    if (Test-Path $testDriverPath) {
-        Add-Log "Launching test driver..."
-        Start-Process -FilePath $testDriverPath
-    } else {
-        Add-Log "Test driver not found: $testDriverPath"
-        [System.Windows.Forms.MessageBox]::Show(
-            "DrvFRTst.exe not found at:`n$testDriverPath`n`nInstall Poscenter DrvKKT driver.",
-            "File Not Found",
-            "OK",
-            "Warning"
-        )
-    }
-})
-
-# Remote command execute button
-$btnExecCmd.Add_Click({
-    if ($cmbCommands.SelectedIndex -lt 0) {
+    if ($comboBox.SelectedIndex -lt 0) {
         Add-Log "Select a command"
         return
     }
 
-    $selectedLabel = $cmbCommands.SelectedItem
+    $selectedLabel = $comboBox.SelectedItem
     $cmdObj = $config.remote_commands | Where-Object { $_.label -eq $selectedLabel } | Select-Object -First 1
     if (-not $cmdObj) {
         Add-Log "Command not found: $selectedLabel"
         return
     }
 
-    $btnExecCmd.Enabled = $false
-    Add-Log ">>> ${selectedLabel}: $($cmdObj.command)"
-    Add-Log "--- output start ---"
-
-    try {
-        if ($cmdObj.local) {
-            # Local command execution
-            $scriptPath = Join-Path $scriptDir $cmdObj.command
-            if (Test-Path $scriptPath) {
-                $result = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -Silent 2>&1
-            } else {
-                $result = & $cmdObj.command 2>&1
-            }
-        } else {
-            # Remote SSH command - auto-connect if needed
-            $kassaIP = $script:connectedIP
-            $kassaPw = $script:connectedPw
-
-            if (-not $script:connected) {
-                # Use selected kassa from list and password from input
-                if ($listView.SelectedItems.Count -eq 0) {
-                    Add-Log "Select a cash register"
-                    Add-Log "--- output end ---"
-                    $btnExecCmd.Enabled = $true
-                    return
-                }
-                $kassaIP = $listView.SelectedItems[0].SubItems[1].Text
-                $kassaPw = $config.ssh_password
-                Add-Log "Connecting to $kassaIP..."
-
-                # Test SSH connection
-                $test = & $plinkPath -batch -ssh -P $config.ssh_port -pw $kassaPw -l $config.ssh_user $kassaIP "echo SSH_OK" 2>&1
-                $testStr = ($test -join "`n").Trim()
-                if ($testStr -notmatch "SSH_OK") {
-                    Add-Log "SSH error - check password/IP"
-                    Add-Log "--- output end ---"
-                    $btnExecCmd.Enabled = $true
-                    return
-                }
-                Add-Log "SSH OK"
-            }
-
-            $result = Invoke-Plink -PlinkPath $plinkPath -HostName $kassaIP -Port $config.ssh_port `
-                -User $config.ssh_user -Password $kassaPw -Command $cmdObj.command
-        }
-        if ($result -and $result.Count -gt 0) {
-            foreach ($line in $result) {
-                Add-Log "$line"
-            }
-        } else {
-            Add-Log "(no output)"
-        }
-    } catch {
-        Add-Log "Error: $_"
-    }
-
-    Add-Log "--- output end ---"
-    $btnExecCmd.Enabled = $true
-})
-
-# Terminal command execute button
-$btnExecTerminal.Add_Click({
-    if ($cmbTerminal.SelectedIndex -lt 0) {
-        Add-Log "Select a command"
-        return
-    }
-
-    $selectedLabel = $cmbTerminal.SelectedItem
-    $cmdObj = $config.remote_commands | Where-Object { $_.label -eq $selectedLabel } | Select-Object -First 1
-    if (-not $cmdObj) {
-        Add-Log "Command not found: $selectedLabel"
-        return
-    }
-
-    $btnExecTerminal.Enabled = $false
+    $btnExec.Enabled = $false
     Add-Log ">>> ${selectedLabel}: $($cmdObj.command)"
     Add-Log "--- output start ---"
 
     try {
         if ($cmdObj.local) {
             $scriptPath = Join-Path $scriptDir $cmdObj.command
-            if (Test-Path $scriptPath) {
-                $result = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -Silent 2>&1
+            $result = if (Test-Path $scriptPath) {
+                & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -Silent 2>&1
             } else {
-                $result = & $cmdObj.command 2>&1
+                & $cmdObj.command 2>&1
             }
         } else {
-            $kassaIP = $script:connectedIP
-            $kassaPw = $script:connectedPw
+            $kassaIP = $State.ConnectedIP
+            $kassaPw = $State.ConnectedPw
 
-            if (-not $script:connected) {
+            if (-not $State.Connected) {
                 if ($listView.SelectedItems.Count -eq 0) {
                     Add-Log "Select a cash register"
                     Add-Log "--- output end ---"
-                    $btnExecTerminal.Enabled = $true
+                    $btnExec.Enabled = $true
                     return
                 }
                 $kassaIP = $listView.SelectedItems[0].SubItems[1].Text
@@ -580,7 +373,7 @@ $btnExecTerminal.Add_Click({
                 if ($testStr -notmatch "SSH_OK") {
                     Add-Log "SSH error - check password/IP"
                     Add-Log "--- output end ---"
-                    $btnExecTerminal.Enabled = $true
+                    $btnExec.Enabled = $true
                     return
                 }
                 Add-Log "SSH OK"
@@ -590,9 +383,7 @@ $btnExecTerminal.Add_Click({
                 -User $config.ssh_user -Password $kassaPw -Command $cmdObj.command
         }
         if ($result -and $result.Count -gt 0) {
-            foreach ($line in $result) {
-                Add-Log "$line"
-            }
+            foreach ($line in $result) { Add-Log "$line" }
         } else {
             Add-Log "(no output)"
         }
@@ -601,8 +392,8 @@ $btnExecTerminal.Add_Click({
     }
 
     Add-Log "--- output end ---"
-    $btnExecTerminal.Enabled = $true
-})
+    $btnExec.Enabled = $true
+}
 
 # Button hover effects
 function Add-ButtonHover {
@@ -624,13 +415,196 @@ Add-ButtonHover $btnExecCmd $colorPrimary
 Add-ButtonHover $btnExecTerminal $colorSuccess
 Add-ButtonHover $btnClearLog $colorLightGray
 
+# Check for updates (async using Task.Run)
+function Check-Update {
+    try {
+        $localVersion = if (Test-Path $localVersionFile) { (Get-Content $localVersionFile -Raw).Trim() } else { "0.0.0" }
+        $remoteVersion = Get-RemoteVersion -BaseUrl $baseUrl
+
+        if (Test-UpdateAvailable $localVersion $remoteVersion) {
+            $form.Invoke([Action]{
+                $result = [System.Windows.Forms.MessageBox]::Show(
+                    "New version available: $remoteVersion (current: $localVersion)`n`nDownload update?",
+                    "Update Available",
+                    "YesNo",
+                    "Information"
+                )
+                if ($result -eq "Yes") {
+                    Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptDir\update.ps1`"" -Wait
+                    [System.Windows.Forms.Application]::Restart()
+                }
+            })
+        } else {
+            $form.Invoke([Action]{ Add-Log "Already up to date (v$localVersion)" })
+        }
+    } catch {
+        $form.Invoke([Action]{ Add-Log "Update check failed: $_" })
+    }
+}
+
+# Async connect (prevent UI freeze)
+$btnConnect.Add_Click({
+    if ($listView.SelectedItems.Count -eq 0) {
+        Add-Log "Select a cash register"
+        return
+    }
+
+    $btnConnect.Enabled = $false
+    $selected = $listView.SelectedItems[0]
+    $kassaIP = $selected.SubItems[1].Text
+    $kassaName = $selected.Text
+    $pw = $config.ssh_password
+
+    Add-Log "=== Connecting to $kassaName ($kassaIP) ==="
+
+    # Run connect in background runspace
+    $runspace = [runspacefactory]::CreateRunspace()
+    $runspace.Open()
+
+    $ps = [powershell]::Create()
+    $ps.Runspace = $runspace
+    $ps.AddScript({
+        param($plinkPath, $kassaIP, $kassaName, $pw, $config)
+
+        # Kill old plink
+        Get-Process plink -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 500
+
+        # Test SSH
+        $test = & $plinkPath -batch -ssh -P $config.ssh_port -pw $pw -l $config.ssh_user $kassaIP "echo SSH_OK" 2>&1
+        $testStr = ($test -join "`n").Trim()
+
+        if ($testStr -notmatch "SSH_OK") {
+            return @{ Success = $false; Error = "SSH_FAILED" }
+        }
+
+        # Disable graphics
+        $xorgOut = & $plinkPath -batch -ssh -P $config.ssh_port -pw $pw -l $config.ssh_user $kassaIP "pgrep Xorg | head -1" 2>&1
+        $xorgStr = ($xorgOut -join "`n").Trim()
+        $pidStr = ""
+        if ($xorgStr -match '(\d+)') { $pidStr = $Matches[1] }
+        if ($pidStr -match '^\d+$') {
+            & $plinkPath -batch -ssh -P $config.ssh_port -pw $pw -l $config.ssh_user $kassaIP "sudo kill -INT $pidStr" 2>&1 | Out-Null
+        }
+
+        Start-Sleep -Seconds 1
+
+        # Start tunnel
+        Get-Process plink -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Milliseconds 500
+
+        $tunnelArgs = "-batch -ssh -P $($config.ssh_port) -pw $pw -l $($config.ssh_user) -L $($config.local_port):$($config.fr_ip):$($config.fr_port) -N $kassaIP"
+        $proc = Start-Process -FilePath $plinkPath -ArgumentList $tunnelArgs -PassThru -WindowStyle Hidden
+
+        # Retry port check
+        $maxRetries = $config.connection_timeout
+        $portReady = $false
+        for ($i = 1; $i -le $maxRetries; $i++) {
+            Start-Sleep -Seconds 1
+            $portCheck = netstat -ano | findstr ":$($config.local_port).*LISTEN"
+            if ($portCheck) {
+                $portReady = $true
+                break
+            }
+        }
+
+        return @{
+            Success = $portReady
+            PID = $proc.Id
+            KassaName = $kassaName
+            KassaIP = $kassaIP
+            Password = $pw
+            Error = if ($portReady) { $null } else { "TUNNEL_FAILED" }
+        }
+    }).AddArgument($plinkPath).AddArgument($kassaIP).AddArgument($kassaName).AddArgument($pw).AddArgument($config)
+
+    # Async execution
+    $task = $ps.BeginInvoke()
+
+    # Poll for completion without blocking UI
+    $timer = New-Object System.Windows.Forms.Timer
+    $timer.Interval = 100
+    $timer.Add_Tick({
+        if ($task.IsCompleted) {
+            $timer.Stop()
+            $result = $ps.EndInvoke($task)
+            $ps.Dispose()
+            $runspace.Close()
+
+            if ($result.Success) {
+                Add-Log "   SSH OK"
+                Add-Log "   Graphics disabled"
+                Add-Log "   === CONNECTED ==="
+                $State.Connected = $true
+                $State.ConnectTime = Get-Date
+                $State.ConnectedKassa = $result.KassaName
+                $State.ConnectedIP = $result.KassaIP
+                $State.ConnectedPw = $result.Password
+                $State.TunnelPID = $result.PID
+                Add-Log "   plink PID: $($result.PID)"
+                # Highlight active kassa
+                if ($listView.SelectedItems.Count -gt 0) {
+                    Set-ActiveKassa $listView.SelectedItems[0] $true
+                }
+            } else {
+                Add-Log "   FAILED - $($result.Error)"
+                Stop-PlinkTunnels
+            }
+
+            $btnConnect.Enabled = $true
+            Write-AppLog "Connection attempt completed"
+        }
+    })
+    $timer.Start()
+})
+
+# Disconnect button
+$btnDisconnect.Add_Click({
+    Stop-PlinkTunnels
+    Add-Log "Disconnected"
+    $State.Connected = $false
+    $State.ConnectTime = $null
+    $State.ConnectedIP = ""
+    $State.ConnectedPw = ""
+    # Reset active kassa highlight
+    foreach ($item in $listView.Items) {
+        Set-ActiveKassa $item $false
+    }
+})
+
+# Update button
+$btnUpdate.Add_Click({
+    Add-Log "Checking for updates..."
+    $btnUpdate.Enabled = $false
+    $task = [System.Threading.Tasks.Task]::Run([Action]{ Check-Update })
+    $btnUpdate.Enabled = $true
+})
+
+$btnTestDriver.Add_Click({
+    if ($testDriverPath -and (Test-Path $testDriverPath)) {
+        Add-Log "Launching test driver..."
+        Start-Process -FilePath $testDriverPath
+    } else {
+        Add-Log "Test driver not found: $testDriverPath"
+        [System.Windows.Forms.MessageBox]::Show(
+            "DrvFRTst.exe not found at:`n$testDriverPath`n`nInstall Poscenter DrvKKT driver.",
+            "File Not Found",
+            "OK",
+            "Warning"
+        )
+    }
+})
+
+# Remote command execute buttons
+$btnExecCmd.Add_Click({ Invoke-SelectedCommand $cmbCommands $btnExecCmd })
+$btnExecTerminal.Add_Click({ Invoke-SelectedCommand $cmbTerminal $btnExecTerminal })
+
 # Startup
 Rotate-Logs
 Add-Log "Application started v$appVersion"
-Add-Log "FR address: 127.0.0.1:$($config.local_port)"
 Add-Log "Cash registers: $($config.kassas.Count)"
 
-# Check for updates on startup (async, uses shared Check-Update)
-Start-Job -ScriptBlock { Check-Update } | Out-Null
+# Check for updates on startup (async using Task)
+$null = [System.Threading.Tasks.Task]::Run([Action]{ Check-Update })
 
 $form.ShowDialog() | Out-Null
