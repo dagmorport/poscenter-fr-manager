@@ -9,7 +9,8 @@ function Write-AppLog {
     if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
     $logFile = Join-Path $logDir "app_$(Get-Date -Format 'yyyy-MM-dd').log"
     $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Add-Content -Path $logFile -Value "[$ts] [$level] $msg" -Encoding UTF8
+    $line = "[$ts] [$level] $msg"
+    [System.IO.File]::AppendAllText($logFile, "$line`r`n", [System.Text.UTF8Encoding]::new($false))
 }
 
 function Add-UILog {

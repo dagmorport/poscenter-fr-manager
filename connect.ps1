@@ -107,7 +107,7 @@ $password = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
 # Test connection
 Write-Host "Testing connection..." -ForegroundColor Gray
 try {
-    $testResult = Invoke-Plink -PlinkPath $plinkPath -Host $kassaIP -Port $sshPort `
+    $testResult = Invoke-Plink -PlinkPath $plinkPath -HostName $kassaIP -Port $sshPort `
         -User $sshUser -Password $password -Command "echo CONNECTION_OK"
     $testStr = ($testResult -join "`n")
 } catch {
@@ -124,7 +124,7 @@ Write-Host "Disabling graphics on cash register..." -ForegroundColor Yellow
 
 # Find and kill Xorg by PID
 try {
-    $xorgOut = Invoke-Plink -PlinkPath $plinkPath -Host $kassaIP -Port $sshPort `
+    $xorgOut = Invoke-Plink -PlinkPath $plinkPath -HostName $kassaIP -Port $sshPort `
         -User $sshUser -Password $password -Command "pgrep Xorg"
     $xorgStr = ($xorgOut -join "`n")
 } catch {
@@ -135,7 +135,7 @@ if ($xorgStr -match '\d+') {
     $pid = $xorgStr.Trim()
     Write-Host "  Found Xorg PID: $pid" -ForegroundColor Gray
     try {
-        Invoke-Plink -PlinkPath $plinkPath -Host $kassaIP -Port $sshPort `
+        Invoke-Plink -PlinkPath $plinkPath -HostName $kassaIP -Port $sshPort `
             -User $sshUser -Password $password -Command "sudo kill -INT $pid" | Out-Null
     } catch {}
     Write-Host "  Graphics disabled" -ForegroundColor Green
@@ -149,7 +149,7 @@ Start-Sleep -Seconds 2
 Write-Host "Starting SSH tunnel..." -ForegroundColor Yellow
 
 try {
-    $tunnelProc = Start-PlinkTunnel -PlinkPath $plinkPath -Host $kassaIP -Port $sshPort `
+    $tunnelProc = Start-PlinkTunnel -PlinkPath $plinkPath -HostName $kassaIP -Port $sshPort `
         -User $sshUser -Password $password `
         -LocalPort $localPort -RemoteHost $frIP -RemotePort $frPort
     Write-Host "plink started (PID: $($tunnelProc.Id))" -ForegroundColor Gray

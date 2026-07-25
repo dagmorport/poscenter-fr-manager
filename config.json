@@ -4,9 +4,28 @@
   "local_port": 17778,
   "ssh_port": 22,
   "ssh_user": "root",
+  "ssh_password": "",
   "plink_path": "",
   "kassas": [
     {"name": "KASSA_1", "ip": "192.168.1.100"},
     {"name": "KASSA_2", "ip": "192.168.1.101"}
+  ],
+  "remote_commands": [
+    {"label": "Перезагрузка", "command": "systemctl reboot", "description": "Перезагружает кассу", "group": "system"},
+    {"label": "Убить GUI", "command": "pkill -x artix-gui", "description": "Завершает графический интерфейс (нужно для ФР)", "group": "system"},
+    {"label": "Перезапустить GUI", "command": "systemctl restart artix-gui", "description": "Перезапускает графический интерфейс", "group": "system"},
+    {"label": "Статус GUI", "command": "systemctl status artix-gui", "description": "Показывает состояние графического интерфейса", "group": "system"},
+    {"label": "Обновить приложение", "command": "update.ps1", "local": true, "description": "Скачивает обновление с GitHub", "group": "system"},
+    {"label": "Установить Сбербанк", "command": "aptitude install -y artix-sb && dpkg -l artix-sb | tail -3", "description": "Устанавливает модуль оплаты Сбербанк (artix-sb)", "group": "terminal"},
+    {"label": "Настроить пинпад", "command": "echo -e 'SUBSYSTEM==\"tty\", KERNEL==\"ttyACM*\", ATTRS{idVendor}==\"0e8d\", ATTRS{idProduct}==\"2012\", SYMLINK+=\"ttyKozen\" SYMLINK+=\"ttyS99\"' > /etc/udev/rules.d/97-kozen.rules && udevadm control --reload-rules && udevadm trigger && ln -sf /dev/ttyACM2 /dev/ttyKozen && ln -sf /dev/ttyKozen /dev/ttyS99 && ls -la /dev/ttyKozen /dev/ttyS99", "description": "Создает udev правило с symlink ttyKozen и ttyS99 для пинпада Kozen P10", "group": "terminal"},
+    {"label": "Копировать файлы Сбербанк", "command": "cp -a /linuxcash/cash/paysystems/sb/files/* /linuxcash/cash/paysystems/sb/ && chmod +x /linuxcash/cash/paysystems/sb/sb_pilot /linuxcash/cash/paysystems/sb/sb_call.sh /linuxcash/cash/paysystems/sb/upnixmn.out && ls -la /linuxcash/cash/paysystems/sb/sb_pilot /linuxcash/cash/paysystems/sb/upnixmn.out", "description": "Копирует файлы из files/ в sb/ (sb_pilot, upnixmn.out и др.)", "group": "terminal"},
+    {"label": "Настроить findcom.ini", "command": "echo -e ';Device class enumerators\nENUMS USB USBCDCACM\n;KOZEN\nVID_0E8D*' > /linuxcash/cash/paysystems/sb/findcom.ini && cat /linuxcash/cash/paysystems/sb/findcom.ini", "description": "Настраивает поиск COM-порта только для Kozen (VID 0E8D)", "group": "terminal"},
+    {"label": "Настроить pinpad.ini", "command": "echo -e 'ComPort=100\nEnableUSB=1\nPinpadLog=1\nPrinterEnd=010D0A\nSpeed=115200\nOpenSession=000000000000\nLastAmount=400\nNewProtocol=1\nDailyReport=%s_inf.txt\nUsbPortPath=/dev/ttyS99' > /linuxcash/cash/paysystems/sb/pinpad.ini && cat /linuxcash/cash/paysystems/sb/pinpad.ini", "description": "Создает pinpad.ini: ComPort=100, UsbPortPath=/dev/ttyS99", "group": "terminal"},
+    {"label": "Версия Сбербанк", "command": "dpkg -l artix-sb 2>&1 | tail -3", "description": "Показывает установленную версию artix-sb", "group": "terminal"},
+    {"label": "Проверить USB", "command": "lsusb | grep -i '0e8d\\|media\\|kozen'", "description": "Ищет пинпад Kozen P10 (VID 0E8D) в списке USB", "group": "terminal"},
+    {"label": "Проверить порты", "command": "ls -la /dev/ttyACM* /dev/ttyKozen /dev/ttyS99 2>&1", "description": "Показывает ttyACM порты и symlink ttyKozen/ttyS99", "group": "terminal"},
+    {"label": "Проверить pinpad.ini", "command": "cat /linuxcash/cash/paysystems/sb/pinpad.ini 2>&1", "description": "Показывает текущий pinpad.ini", "group": "terminal"},
+    {"label": "Проверить findcom.ini", "command": "cat /linuxcash/cash/paysystems/sb/findcom.ini 2>&1", "description": "Показывает findcom.ini (поиск COM-порта)", "group": "terminal"},
+    {"label": "Список /sb/", "command": "ls -la /linuxcash/cash/paysystems/sb/ 2>&1", "description": "Показывает все файлы в директории sb", "group": "terminal"}
   ]
 }
