@@ -57,7 +57,7 @@ $colorLightGray = [System.Drawing.Color]::FromArgb(158, 158, 158)
 # Form
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "POScenter FR Manager v$appVersion"
-$form.Size = New-Object System.Drawing.Size(500, 660)
+$form.Size = New-Object System.Drawing.Size(500, 690)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "Sizable"
 $form.TopMost = $false
@@ -214,7 +214,7 @@ $cmbTerminal.Add_SelectedIndexChanged({
 $groupPoscenter = New-Object System.Windows.Forms.GroupBox
 $groupPoscenter.Text = "POScenter"
 $groupPoscenter.Location = New-Object System.Drawing.Point(15, 385)
-$groupPoscenter.Size = New-Object System.Drawing.Size(455, 55)
+$groupPoscenter.Size = New-Object System.Drawing.Size(455, 80)
 $groupPoscenter.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($groupPoscenter)
 
@@ -251,17 +251,29 @@ $btnTestDriver.Font = New-Object System.Drawing.Font("Segoe UI", 8)
 $btnTestDriver.Cursor = [System.Windows.Forms.Cursors]::Hand
 $groupPoscenter.Controls.Add($btnTestDriver)
 
+# FR Status button
+$btnFrStatus = New-Object System.Windows.Forms.Button
+$btnFrStatus.Text = [char]0x0421 + [char]0x0442 + [char]0x0430 + [char]0x0442 + [char]0x0443 + [char]0x0441 + " " + [char]0x0424 + [char]0x0420
+$btnFrStatus.Location = New-Object System.Drawing.Point(10, 48)
+$btnFrStatus.Size = New-Object System.Drawing.Size(140, 25)
+$btnFrStatus.BackColor = $colorSuccess
+$btnFrStatus.ForeColor = [System.Drawing.Color]::White
+$btnFrStatus.FlatStyle = "Flat"
+$btnFrStatus.Font = New-Object System.Drawing.Font("Segoe UI", 8)
+$btnFrStatus.Cursor = [System.Windows.Forms.Cursors]::Hand
+$groupPoscenter.Controls.Add($btnFrStatus)
+
 # Log area
 $logLabel = New-Object System.Windows.Forms.Label
 $logLabel.Text = [char]0x0416 + [char]0x0443 + [char]0x0440 + [char]0x043D + [char]0x0430 + [char]0x043B
-$logLabel.Location = New-Object System.Drawing.Point(15, 450)
+$logLabel.Location = New-Object System.Drawing.Point(15, 515)
 $logLabel.AutoSize = $true
 $logLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($logLabel)
 
 $btnUpdate = New-Object System.Windows.Forms.Button
 $btnUpdate.Text = [char]0x041E + [char]0x0431 + [char]0x043D + [char]0x043E + [char]0x0432 + [char]0x0438 + [char]0x0442 + [char]0x044C
-$btnUpdate.Location = New-Object System.Drawing.Point(340, 448)
+$btnUpdate.Location = New-Object System.Drawing.Point(340, 513)
 $btnUpdate.Size = New-Object System.Drawing.Size(75, 20)
 $btnUpdate.BackColor = $colorLightGray
 $btnUpdate.ForeColor = [System.Drawing.Color]::White
@@ -272,7 +284,7 @@ $form.Controls.Add($btnUpdate)
 
 $btnClearLog = New-Object System.Windows.Forms.Button
 $btnClearLog.Text = [char]0x041E + [char]0x0447 + [char]0x0438 + [char]0x0441 + [char]0x0442 + [char]0x0438 + [char]0x0442 + [char]0x044C
-$btnClearLog.Location = New-Object System.Drawing.Point(420, 448)
+$btnClearLog.Location = New-Object System.Drawing.Point(420, 513)
 $btnClearLog.Size = New-Object System.Drawing.Size(50, 20)
 $btnClearLog.BackColor = $colorLightGray
 $btnClearLog.ForeColor = [System.Drawing.Color]::White
@@ -284,7 +296,7 @@ $form.Controls.Add($btnClearLog)
 $btnClearLog.Add_Click({ $logBox.Clear() })
 
 $logBox = New-Object System.Windows.Forms.TextBox
-$logBox.Location = New-Object System.Drawing.Point(15, 472)
+$logBox.Location = New-Object System.Drawing.Point(15, 537)
 $logBox.Size = New-Object System.Drawing.Size(455, 130)
 $logBox.Multiline = $true
 $logBox.ScrollBars = "Vertical"
@@ -413,6 +425,7 @@ function Add-ButtonHover {
 Add-ButtonHover $btnConnect $colorPrimary
 Add-ButtonHover $btnDisconnect $colorRed
 Add-ButtonHover $btnTestDriver $colorLightGray
+Add-ButtonHover $btnFrStatus $colorSuccess
 Add-ButtonHover $btnUpdate $colorLightGray
 Add-ButtonHover $btnExecCmd $colorPrimary
 Add-ButtonHover $btnExecTerminal $colorSuccess
@@ -596,6 +609,100 @@ $btnTestDriver.Add_Click({
             "Warning"
         )
     }
+})
+
+# FR Status button - get full FR status via SSH
+$btnFrStatus.Add_Click({
+    $kassaIP = $State.ConnectedIP
+    $kassaPw = $State.ConnectedPw
+
+    if (-not $State.Connected) {
+        if ($listView.SelectedItems.Count -eq 0) {
+            Add-Log "Select a cash register"
+            return
+        }
+        $kassaIP = $listView.SelectedItems[0].SubItems[1].Text
+        $kassaPw = $config.ssh_password
+        Add-Log "Connecting to $kassaIP..."
+
+        $test = & $plinkPath -batch -ssh -P $config.ssh_port -pw $kassaPw -l $config.ssh_user $kassaIP "echo SSH_OK" 2>&1
+        $testStr = ($test -join "`n").Trim()
+        if ($testStr -notmatch "SSH_OK") {
+            Add-Log "SSH error - check password/IP"
+            return
+        }
+        Add-Log "SSH OK"
+    }
+
+    Add-Log "=== FR Status: $kassaIP ==="
+
+    # Try InfoClient binary first
+    $infoClient = & $plinkPath -batch -ssh -P $config.ssh_port -pw $kassaPw -l $config.ssh_user $kassaIP "/linuxcash/cash/bin/InfoClient 2>&1" 2>&1
+    $infoStr = ($infoClient -join "`n").Trim()
+
+    if ($infoStr -and $infoStr.Length -gt 10) {
+        # Parse key=value pairs
+        $pairs = $infoStr -split "&"
+        $parsed = @{}
+        foreach ($pair in $pairs) {
+            $kv = $pair -split "=", 2
+            if ($kv.Count -eq 2) {
+                $parsed[$kv[0]] = $kv[1]
+            }
+        }
+
+        Add-Log "--- KKM Info ---"
+        if ($parsed.model) { Add-Log "Model: $($parsed.model)" }
+        if ($parsed.number) { Add-Log "Serial: $($parsed.number)" }
+        if ($parsed.firmware) { Add-Log "Firmware: $($parsed.firmware)" }
+        if ($parsed.ffd_version) { Add-Log "FFD Version: $($parsed.ffd_version)" }
+
+        Add-Log "--- FN Info ---"
+        if ($parsed.fn) { Add-Log "FN Present: $($parsed.fn)" }
+        if ($parsed.fn_number) { Add-Log "FN Number: $($parsed.fn_number)" }
+        if ($parsed.fn_time_end) { Add-Log "FN Expiry: $($parsed.fn_time_end)" }
+        if ($parsed.fn_version) { Add-Log "FN Version: $($parsed.fn_version)" }
+
+        Add-Log "--- Documents ---"
+        if ($parsed.fn_last_doc_num) { Add-Log "Last Doc #: $($parsed.fn_last_doc_num)" }
+        if ($parsed.fn_last_doc_date) { Add-Log "Last Doc Date: $($parsed.fn_last_doc_date)" }
+        if ($parsed.fn_not_send_doc_count) { Add-Log "Not Sent to OFD: $($parsed.fn_not_send_doc_count)" }
+        if ($parsed.fn_earliest_not_send_doc_date) { Add-Log "Earliest Not Sent: $($parsed.fn_earliest_not_send_doc_date)" }
+
+        Add-Log "--- Status ---"
+        if ($parsed.fn_connection_status) { Add-Log "OFD Connection: $($parsed.fn_connection_status)" }
+        if ($parsed.fpcountleft) { Add-Log "Shifts Left: $($parsed.fpcountleft)" }
+        if ($parsed.fn_registration_count) { Add-Log "Reg Remaining: $($parsed.fn_registration_count)" }
+        if ($parsed.fn_registration_used) { Add-Log "Reg Used: $($parsed.fn_registration_used)" }
+    } else {
+        # Fallback: try reading JSON file
+        Add-Log "InfoClient not available, trying JSON..."
+        $jsonOut = & $plinkPath -batch -ssh -P $config.ssh_port -pw $kassaPw -l $config.ssh_user $kassaIP "cat /linuxcash/cash/data/info/kkm.json 2>&1" 2>&1
+        $jsonStr = ($jsonOut -join "`n").Trim()
+
+        if ($jsonStr -and $jsonStr.Length -gt 10) {
+            try {
+                $json = $jsonStr | ConvertFrom-Json
+                Add-Log "--- KKM Info (JSON) ---"
+                Add-Log "Model: $($json.modelName)"
+                Add-Log "Serial: $($json.number)"
+                Add-Log "Producer: $($json.producer)"
+                Add-Log "--- FN Info ---"
+                Add-Log "FN Number: $($json.fn_number)"
+                Add-Log "FN Expiry: $($json.fn_time_end)"
+                Add-Log "Last Doc #: $($json.fn_last_doc_num)"
+                Add-Log "Not Sent: $($json.fn_not_send_doc_count)"
+                Add-Log "OFD Status: $($json.fn_connection_status)"
+                Add-Log "Shifts Left: $($json.fpcountleft)"
+            } catch {
+                Add-Log "JSON parse error: $_"
+            }
+        } else {
+            Add-Log "Could not retrieve FR status"
+        }
+    }
+
+    Add-Log "=== End FR Status ==="
 })
 
 # Remote command execute buttons
