@@ -57,7 +57,7 @@ $colorLightGray = [System.Drawing.Color]::FromArgb(158, 158, 158)
 # Form
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "POScenter FR Manager v$appVersion"
-$form.Size = New-Object System.Drawing.Size(500, 680)
+$form.Size = New-Object System.Drawing.Size(500, 640)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "Sizable"
 $form.TopMost = $false
@@ -102,7 +102,7 @@ $listView.View = "Details"
 $listView.FullRowSelect = $true
 $listView.GridLines = $true
 $listView.HideSelection = $false
-$listView.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+$listView.Font = New-Object System.Drawing.Font("Consolas", 9)
 $listView.Columns.Add("Name", 120) | Out-Null
 $listView.Columns.Add("IP Address", 160) | Out-Null
 
@@ -113,53 +113,10 @@ foreach ($k in $config.kassas) {
 }
 $groupKassas.Controls.Add($listView)
 
-# Connection group
-$groupPassword = New-Object System.Windows.Forms.GroupBox
-$groupPassword.Text = [char]0x041F + [char]0x043E + [char]0x0434 + [char]0x043A + [char]0x043B + [char]0x044E + [char]0x0447 + [char]0x0435 + [char]0x043D + [char]0x0438 + [char]0x0435
-$groupPassword.Location = New-Object System.Drawing.Point(15, 220)
-$groupPassword.Size = New-Object System.Drawing.Size(455, 60)
-$groupPassword.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
-$form.Controls.Add($groupPassword)
-
-$lblStatus = New-Object System.Windows.Forms.Label
-$lblStatus.Text = [char]0x0413 + [char]0x043E + [char]0x0442 + [char]0x043E + [char]0x0432
-$lblStatus.Location = New-Object System.Drawing.Point(10, 18)
-$lblStatus.Size = New-Object System.Drawing.Size(200, 20)
-$lblStatus.ForeColor = $colorGreen
-$lblStatus.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
-$groupPassword.Controls.Add($lblStatus)
-
-$lblUser = New-Object System.Windows.Forms.Label
-$lblUser.Text = "root@"
-$lblUser.Location = New-Object System.Drawing.Point(220, 20)
-$lblUser.AutoSize = $true
-$lblUser.ForeColor = $colorLightGray
-$lblUser.Font = New-Object System.Drawing.Font("Segoe UI", 9)
-$groupPassword.Controls.Add($lblUser)
-
-# FR Address display
-$lblFrAddr = New-Object System.Windows.Forms.Label
-$lblFrAddr.Text = "FR: 127.0.0.1:$($config.local_port)"
-$lblFrAddr.Location = New-Object System.Drawing.Point(10, 38)
-$lblFrAddr.Size = New-Object System.Drawing.Size(250, 20)
-$lblFrAddr.ForeColor = $colorAccent
-$lblFrAddr.Font = New-Object System.Drawing.Font("Consolas", 9, [System.Drawing.FontStyle]::Bold)
-$groupPassword.Controls.Add($lblFrAddr)
-
-# Connection timer
-$lblTimer = New-Object System.Windows.Forms.Label
-$lblTimer.Text = ""
-$lblTimer.Location = New-Object System.Drawing.Point(270, 38)
-$lblTimer.Size = New-Object System.Drawing.Size(170, 20)
-$lblTimer.ForeColor = $colorOrange
-$lblTimer.Font = New-Object System.Drawing.Font("Consolas", 9)
-$lblTimer.TextAlign = "MiddleRight"
-$groupPassword.Controls.Add($lblTimer)
-
 # System Commands group
 $groupRemote = New-Object System.Windows.Forms.GroupBox
 $groupRemote.Text = [char]0x0421 + [char]0x0438 + [char]0x0441 + [char]0x0442 + [char]0x0435 + [char]0x043C + [char]0x043D + [char]0x044B + [char]0x0435 + " " + [char]0x043A + [char]0x043E + [char]0x043C + [char]0x0430 + [char]0x043D + [char]0x0434 + [char]0x044B
-$groupRemote.Location = New-Object System.Drawing.Point(15, 290)
+$groupRemote.Location = New-Object System.Drawing.Point(15, 220)
 $groupRemote.Size = New-Object System.Drawing.Size(455, 75)
 $groupRemote.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($groupRemote)
@@ -193,7 +150,7 @@ $groupRemote.Controls.Add($lblCmdDesc)
 # Terminal Commands group
 $groupTerminal = New-Object System.Windows.Forms.GroupBox
 $groupTerminal.Text = [char]0x0422 + [char]0x0435 + [char]0x0440 + [char]0x043C + [char]0x0438 + [char]0x043D + [char]0x0430 + [char]0x043B + " " + [char]0x0421 + [char]0x0431 + [char]0x0435 + [char]0x0440 + [char]0x0431 + [char]0x0430 + [char]0x043D + [char]0x043A
-$groupTerminal.Location = New-Object System.Drawing.Point(15, 370)
+$groupTerminal.Location = New-Object System.Drawing.Point(15, 305)
 $groupTerminal.Size = New-Object System.Drawing.Size(455, 75)
 $groupTerminal.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($groupTerminal)
@@ -263,7 +220,7 @@ $cmbTerminal.Add_SelectedIndexChanged({
 
 # Buttons panel
 $btnPanel = New-Object System.Windows.Forms.Panel
-$btnPanel.Location = New-Object System.Drawing.Point(15, 455)
+$btnPanel.Location = New-Object System.Drawing.Point(15, 390)
 $btnPanel.Size = New-Object System.Drawing.Size(455, 55)
 $form.Controls.Add($btnPanel)
 
@@ -271,7 +228,7 @@ $form.Controls.Add($btnPanel)
 $btnConnect = New-Object System.Windows.Forms.Button
 $btnConnect.Text = [char]0x041F + [char]0x043E + [char]0x0434 + [char]0x043A + [char]0x043B
 $btnConnect.Location = New-Object System.Drawing.Point(0, 2)
-$btnConnect.Size = New-Object System.Drawing.Size(90, 25)
+$btnConnect.Size = New-Object System.Drawing.Size(100, 25)
 $btnConnect.BackColor = $colorPrimary
 $btnConnect.ForeColor = [System.Drawing.Color]::White
 $btnConnect.FlatStyle = "Flat"
@@ -281,25 +238,14 @@ $btnPanel.Controls.Add($btnConnect)
 
 $btnDisconnect = New-Object System.Windows.Forms.Button
 $btnDisconnect.Text = [char]0x0421 + [char]0x0442 + [char]0x043E + [char]0x043F
-$btnDisconnect.Location = New-Object System.Drawing.Point(100, 2)
-$btnDisconnect.Size = New-Object System.Drawing.Size(90, 25)
+$btnDisconnect.Location = New-Object System.Drawing.Point(110, 2)
+$btnDisconnect.Size = New-Object System.Drawing.Size(100, 25)
 $btnDisconnect.BackColor = $colorRed
 $btnDisconnect.ForeColor = [System.Drawing.Color]::White
 $btnDisconnect.FlatStyle = "Flat"
 $btnDisconnect.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $btnDisconnect.Cursor = [System.Windows.Forms.Cursors]::Hand
 $btnPanel.Controls.Add($btnDisconnect)
-
-$btnCopy = New-Object System.Windows.Forms.Button
-$btnCopy.Text = [char]0x041A + [char]0x043E + [char]0x043F + [char]0x0438 + [char]0x0440 + [char]0x043E + [char]0x0432 + [char]0x0430 + [char]0x0442 + [char]0x044C
-$btnCopy.Location = New-Object System.Drawing.Point(200, 2)
-$btnCopy.Size = New-Object System.Drawing.Size(120, 25)
-$btnCopy.BackColor = $colorPrimary
-$btnCopy.ForeColor = [System.Drawing.Color]::White
-$btnCopy.FlatStyle = "Flat"
-$btnCopy.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
-$btnCopy.Cursor = [System.Windows.Forms.Cursors]::Hand
-$btnPanel.Controls.Add($btnCopy)
 
 # Row 2 - Utility actions
 $btnTestDriver = New-Object System.Windows.Forms.Button
@@ -327,14 +273,14 @@ $btnPanel.Controls.Add($btnUpdate)
 # Log area
 $logLabel = New-Object System.Windows.Forms.Label
 $logLabel.Text = [char]0x0416 + [char]0x0443 + [char]0x0440 + [char]0x043D + [char]0x0430 + [char]0x043B
-$logLabel.Location = New-Object System.Drawing.Point(15, 520)
+$logLabel.Location = New-Object System.Drawing.Point(15, 455)
 $logLabel.AutoSize = $true
 $logLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($logLabel)
 
 $btnClearLog = New-Object System.Windows.Forms.Button
 $btnClearLog.Text = [char]0x041E + [char]0x0447 + [char]0x0438 + [char]0x0441 + [char]0x0442 + [char]0x0438 + [char]0x0442 + [char]0x044C
-$btnClearLog.Location = New-Object System.Drawing.Point(420, 518)
+$btnClearLog.Location = New-Object System.Drawing.Point(420, 453)
 $btnClearLog.Size = New-Object System.Drawing.Size(50, 20)
 $btnClearLog.BackColor = $colorLightGray
 $btnClearLog.ForeColor = [System.Drawing.Color]::White
@@ -348,8 +294,8 @@ $btnClearLog.Add_Click({
 })
 
 $logBox = New-Object System.Windows.Forms.TextBox
-$logBox.Location = New-Object System.Drawing.Point(15, 542)
-$logBox.Size = New-Object System.Drawing.Size(455, 130)
+$logBox.Location = New-Object System.Drawing.Point(15, 477)
+$logBox.Size = New-Object System.Drawing.Size(455, 140)
 $logBox.Multiline = $true
 $logBox.ScrollBars = "Vertical"
 $logBox.ReadOnly = $true
@@ -358,33 +304,9 @@ $logBox.ForeColor = [System.Drawing.Color]::FromArgb(0, 255, 0)
 $logBox.Font = New-Object System.Drawing.Font("Consolas", 9)
 $form.Controls.Add($logBox)
 
-# Timer for connection duration
-$timer = New-Object System.Windows.Forms.Timer
-$timer.Interval = 1000
-$timer.Add_Tick({
-    if ($script:connected -and $script:connectTime) {
-        $elapsed = (Get-Date) - $script:connectTime
-        $hours = $elapsed.Hours.ToString("D2")
-        $mins = $elapsed.Minutes.ToString("D2")
-        $secs = $elapsed.Seconds.ToString("D2")
-        $lblTimer.Text = "Connected: ${hours}:${mins}:${secs}"
-    }
-})
-
 function Add-Log {
     param([string]$msg)
     Add-UILog -LogBox $logBox -msg $msg
-}
-
-function Set-Status {
-    param([string]$text, [string]$color = "green")
-    $lblStatus.Text = $text
-    switch ($color) {
-        "green"  { $lblStatus.ForeColor = $colorGreen }
-        "red"    { $lblStatus.ForeColor = $colorRed }
-        "yellow" { $lblStatus.ForeColor = [System.Drawing.Color]::FromArgb(255, 193, 7) }
-        "gray"   { $lblStatus.ForeColor = $colorLightGray }
-    }
 }
 
 function Check-Update {
@@ -426,7 +348,6 @@ $btnConnect.Add_Click({
     $kassaName = $selected.Text
     $pw = $config.ssh_password
 
-    Set-Status "Connecting..." "yellow"
     Add-Log "=== Connecting to $kassaName ($kassaIP) ==="
 
     # Kill old plink
@@ -442,7 +363,6 @@ $btnConnect.Add_Click({
         Add-Log "   SSH OK"
     } else {
         Add-Log "   FAILED - check password/IP"
-        Set-Status "SSH Failed" "red"
         $btnConnect.Enabled = $true
         return
     }
@@ -492,18 +412,14 @@ $btnConnect.Add_Click({
 
     if ($portReady) {
         Add-Log "   === CONNECTED ==="
-        Add-Log "   FR address: 127.0.0.1:$($config.local_port)"
-        Set-Status "Connected to $kassaName" "green"
         $script:connected = $true
         $script:connectTime = Get-Date
         $script:connectedKassa = $kassaName
         $script:connectedIP = $kassaIP
         $script:connectedPw = $pw
-        $timer.Start()
     } else {
         Add-Log "   Port NOT listening after ${maxRetries}s"
         Add-Log "   TUNNEL FAILED"
-        Set-Status "Tunnel Failed" "red"
         Stop-PlinkTunnels
     }
 
@@ -515,19 +431,10 @@ $btnConnect.Add_Click({
 $btnDisconnect.Add_Click({
     Stop-PlinkTunnels
     Add-Log "Disconnected"
-    Set-Status "Disconnected" "gray"
     $script:connected = $false
     $script:connectTime = $null
     $script:connectedIP = ""
     $script:connectedPw = ""
-    $timer.Stop()
-    $lblTimer.Text = ""
-})
-
-# Copy address button
-$btnCopy.Add_Click({
-    [System.Windows.Forms.Clipboard]::SetText("127.0.0.1:$($config.local_port)")
-    Add-Log "Copied: 127.0.0.1:$($config.local_port)"
 })
 
 # Update button
@@ -711,7 +618,6 @@ function Add-ButtonHover {
 
 Add-ButtonHover $btnConnect $colorPrimary
 Add-ButtonHover $btnDisconnect $colorRed
-Add-ButtonHover $btnCopy $colorPrimary
 Add-ButtonHover $btnTestDriver $colorLightGray
 Add-ButtonHover $btnUpdate $colorLightGray
 Add-ButtonHover $btnExecCmd $colorPrimary
@@ -728,4 +634,3 @@ Add-Log "Cash registers: $($config.kassas.Count)"
 Start-Job -ScriptBlock { Check-Update } | Out-Null
 
 $form.ShowDialog() | Out-Null
-$timer.Stop()
