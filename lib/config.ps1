@@ -39,6 +39,12 @@ function Read-Config {
     if (-not (Get-Member -InputObject $config -Name 'test_driver_path' -MemberType NoteProperty -ErrorAction SilentlyContinue)) {
         $config | Add-Member -NotePropertyName 'test_driver_path' -NotePropertyValue '' -Force
     }
+    if (-not (Get-Member -InputObject $config -Name 'connection_timeout' -MemberType NoteProperty -ErrorAction SilentlyContinue)) {
+        $config | Add-Member -NotePropertyName 'connection_timeout' -NotePropertyValue 10 -Force
+    }
+    if (-not (Get-Member -InputObject $config -Name 'terminal_name' -MemberType NoteProperty -ErrorAction SilentlyContinue)) {
+        $config | Add-Member -NotePropertyName 'terminal_name' -NotePropertyValue 'Terminal' -Force
+    }
 
     return $config
 }
