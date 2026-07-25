@@ -57,7 +57,7 @@ $colorLightGray = [System.Drawing.Color]::FromArgb(158, 158, 158)
 # Form
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "POScenter FR Manager v$appVersion"
-$form.Size = New-Object System.Drawing.Size(500, 640)
+$form.Size = New-Object System.Drawing.Size(500, 660)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "Sizable"
 $form.TopMost = $false
@@ -210,75 +210,69 @@ $cmbTerminal.Add_SelectedIndexChanged({
     }
 })
 
-# Buttons panel
-$btnPanel = New-Object System.Windows.Forms.Panel
-$btnPanel.Location = New-Object System.Drawing.Point(15, 390)
-$btnPanel.Size = New-Object System.Drawing.Size(455, 55)
-$form.Controls.Add($btnPanel)
+# POScenter group (all buttons except Update)
+$groupPoscenter = New-Object System.Windows.Forms.GroupBox
+$groupPoscenter.Text = "POScenter"
+$groupPoscenter.Location = New-Object System.Drawing.Point(15, 385)
+$groupPoscenter.Size = New-Object System.Drawing.Size(455, 55)
+$groupPoscenter.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$form.Controls.Add($groupPoscenter)
 
 $btnConnect = New-Object System.Windows.Forms.Button
 $btnConnect.Text = [char]0x041F + [char]0x043E + [char]0x0434 + [char]0x043A + [char]0x043B
-$btnConnect.Location = New-Object System.Drawing.Point(0, 2)
+$btnConnect.Location = New-Object System.Drawing.Point(10, 20)
 $btnConnect.Size = New-Object System.Drawing.Size(100, 25)
 $btnConnect.BackColor = $colorPrimary
 $btnConnect.ForeColor = [System.Drawing.Color]::White
 $btnConnect.FlatStyle = "Flat"
 $btnConnect.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $btnConnect.Cursor = [System.Windows.Forms.Cursors]::Hand
-$btnPanel.Controls.Add($btnConnect)
+$groupPoscenter.Controls.Add($btnConnect)
 
 $btnDisconnect = New-Object System.Windows.Forms.Button
 $btnDisconnect.Text = [char]0x0421 + [char]0x0442 + [char]0x043E + [char]0x043F
-$btnDisconnect.Location = New-Object System.Drawing.Point(110, 2)
+$btnDisconnect.Location = New-Object System.Drawing.Point(120, 20)
 $btnDisconnect.Size = New-Object System.Drawing.Size(100, 25)
 $btnDisconnect.BackColor = $colorRed
 $btnDisconnect.ForeColor = [System.Drawing.Color]::White
 $btnDisconnect.FlatStyle = "Flat"
 $btnDisconnect.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $btnDisconnect.Cursor = [System.Windows.Forms.Cursors]::Hand
-$btnPanel.Controls.Add($btnDisconnect)
+$groupPoscenter.Controls.Add($btnDisconnect)
 
 $btnTestDriver = New-Object System.Windows.Forms.Button
 $btnTestDriver.Text = [char]0x0422 + [char]0x0435 + [char]0x0441 + [char]0x0442 + " " + [char]0x0434 + [char]0x0440 + [char]0x0430 + [char]0x0439 + [char]0x0432 + [char]0x0435 + [char]0x0440
-$btnTestDriver.Location = New-Object System.Drawing.Point(0, 30)
-$btnTestDriver.Size = New-Object System.Drawing.Size(150, 22)
+$btnTestDriver.Location = New-Object System.Drawing.Point(230, 20)
+$btnTestDriver.Size = New-Object System.Drawing.Size(150, 25)
 $btnTestDriver.BackColor = $colorLightGray
 $btnTestDriver.ForeColor = [System.Drawing.Color]::White
 $btnTestDriver.FlatStyle = "Flat"
 $btnTestDriver.Font = New-Object System.Drawing.Font("Segoe UI", 8)
 $btnTestDriver.Cursor = [System.Windows.Forms.Cursors]::Hand
-$btnPanel.Controls.Add($btnTestDriver)
-
-$btnUpdate = New-Object System.Windows.Forms.Button
-$btnUpdate.Text = [char]0x041E + [char]0x0431 + [char]0x043D + [char]0x043E + [char]0x0432 + [char]0x0438 + [char]0x0442 + [char]0x044C
-$btnUpdate.Location = New-Object System.Drawing.Point(160, 30)
-$btnUpdate.Size = New-Object System.Drawing.Size(100, 22)
-$btnUpdate.BackColor = $colorLightGray
-$btnUpdate.ForeColor = [System.Drawing.Color]::White
-$btnUpdate.FlatStyle = "Flat"
-$btnUpdate.Font = New-Object System.Drawing.Font("Segoe UI", 8)
-$btnUpdate.Cursor = [System.Windows.Forms.Cursors]::Hand
-$btnPanel.Controls.Add($btnUpdate)
-
-$lblPoscenter = New-Object System.Windows.Forms.Label
-$lblPoscenter.Text = "POScenter"
-$lblPoscenter.Location = New-Object System.Drawing.Point(270, 33)
-$lblPoscenter.AutoSize = $true
-$lblPoscenter.ForeColor = $colorLightGray
-$lblPoscenter.Font = New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Italic)
-$btnPanel.Controls.Add($lblPoscenter)
+$groupPoscenter.Controls.Add($btnTestDriver)
 
 # Log area
 $logLabel = New-Object System.Windows.Forms.Label
 $logLabel.Text = [char]0x0416 + [char]0x0443 + [char]0x0440 + [char]0x043D + [char]0x0430 + [char]0x043B
-$logLabel.Location = New-Object System.Drawing.Point(15, 455)
+$logLabel.Location = New-Object System.Drawing.Point(15, 450)
 $logLabel.AutoSize = $true
 $logLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($logLabel)
 
+$btnUpdate = New-Object System.Windows.Forms.Button
+$btnUpdate.Text = [char]0x041E + [char]0x0431 + [char]0x043D + [char]0x043E + [char]0x0432 + [char]0x0438 + [char]0x0442 + [char]0x044C
+$btnUpdate.Location = New-Object System.Drawing.Point(340, 448)
+$btnUpdate.Size = New-Object System.Drawing.Size(75, 20)
+$btnUpdate.BackColor = $colorLightGray
+$btnUpdate.ForeColor = [System.Drawing.Color]::White
+$btnUpdate.FlatStyle = "Flat"
+$btnUpdate.Font = New-Object System.Drawing.Font("Segoe UI", 7)
+$btnUpdate.Cursor = [System.Windows.Forms.Cursors]::Hand
+$form.Controls.Add($btnUpdate)
+
 $btnClearLog = New-Object System.Windows.Forms.Button
 $btnClearLog.Text = [char]0x041E + [char]0x0447 + [char]0x0438 + [char]0x0441 + [char]0x0442 + [char]0x0438 + [char]0x0442 + [char]0x044C
-$btnClearLog.Location = New-Object System.Drawing.Point(420, 453)
+$btnClearLog.Location = New-Object System.Drawing.Point(420, 448)
 $btnClearLog.Size = New-Object System.Drawing.Size(50, 20)
 $btnClearLog.BackColor = $colorLightGray
 $btnClearLog.ForeColor = [System.Drawing.Color]::White
@@ -290,8 +284,8 @@ $form.Controls.Add($btnClearLog)
 $btnClearLog.Add_Click({ $logBox.Clear() })
 
 $logBox = New-Object System.Windows.Forms.TextBox
-$logBox.Location = New-Object System.Drawing.Point(15, 477)
-$logBox.Size = New-Object System.Drawing.Size(455, 140)
+$logBox.Location = New-Object System.Drawing.Point(15, 472)
+$logBox.Size = New-Object System.Drawing.Size(455, 130)
 $logBox.Multiline = $true
 $logBox.ScrollBars = "Vertical"
 $logBox.ReadOnly = $true
