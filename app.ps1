@@ -57,7 +57,7 @@ $colorLightGray = [System.Drawing.Color]::FromArgb(158, 158, 158)
 # Form
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "POScenter FR Manager v$appVersion"
-$form.Size = New-Object System.Drawing.Size(500, 770)
+$form.Size = New-Object System.Drawing.Size(500, 680)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "Sizable"
 $form.TopMost = $false
@@ -89,15 +89,15 @@ $titlePanel.Controls.Add($versionLabel)
 
 # Cash registers group
 $groupKassas = New-Object System.Windows.Forms.GroupBox
-$groupKassas.Text = "Cash Registers"
+$groupKassas.Text = [char]0x041A + [char]0x0430 + [char]0x0441 + [char]0x0441 + [char]0x044B
 $groupKassas.Location = New-Object System.Drawing.Point(15, 60)
-$groupKassas.Size = New-Object System.Drawing.Size(455, 160)
+$groupKassas.Size = New-Object System.Drawing.Size(455, 150)
 $groupKassas.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($groupKassas)
 
 $listView = New-Object System.Windows.Forms.ListView
 $listView.Location = New-Object System.Drawing.Point(10, 22)
-$listView.Size = New-Object System.Drawing.Size(435, 128)
+$listView.Size = New-Object System.Drawing.Size(435, 118)
 $listView.View = "Details"
 $listView.FullRowSelect = $true
 $listView.GridLines = $true
@@ -115,15 +115,15 @@ $groupKassas.Controls.Add($listView)
 
 # Connection group
 $groupPassword = New-Object System.Windows.Forms.GroupBox
-$groupPassword.Text = "Connection"
-$groupPassword.Location = New-Object System.Drawing.Point(15, 230)
-$groupPassword.Size = New-Object System.Drawing.Size(455, 65)
+$groupPassword.Text = [char]0x041F + [char]0x043E + [char]0x0434 + [char]0x043A + [char]0x043B + [char]0x044E + [char]0x0447 + [char]0x0435 + [char]0x043D + [char]0x0438 + [char]0x0435
+$groupPassword.Location = New-Object System.Drawing.Point(15, 220)
+$groupPassword.Size = New-Object System.Drawing.Size(455, 60)
 $groupPassword.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($groupPassword)
 
 $lblStatus = New-Object System.Windows.Forms.Label
-$lblStatus.Text = "Ready"
-$lblStatus.Location = New-Object System.Drawing.Point(10, 20)
+$lblStatus.Text = [char]0x0413 + [char]0x043E + [char]0x0442 + [char]0x043E + [char]0x0432
+$lblStatus.Location = New-Object System.Drawing.Point(10, 18)
 $lblStatus.Size = New-Object System.Drawing.Size(200, 20)
 $lblStatus.ForeColor = $colorGreen
 $lblStatus.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
@@ -140,7 +140,7 @@ $groupPassword.Controls.Add($lblUser)
 # FR Address display
 $lblFrAddr = New-Object System.Windows.Forms.Label
 $lblFrAddr.Text = "FR: 127.0.0.1:$($config.local_port)"
-$lblFrAddr.Location = New-Object System.Drawing.Point(10, 40)
+$lblFrAddr.Location = New-Object System.Drawing.Point(10, 38)
 $lblFrAddr.Size = New-Object System.Drawing.Size(250, 20)
 $lblFrAddr.ForeColor = $colorAccent
 $lblFrAddr.Font = New-Object System.Drawing.Font("Consolas", 9, [System.Drawing.FontStyle]::Bold)
@@ -149,7 +149,7 @@ $groupPassword.Controls.Add($lblFrAddr)
 # Connection timer
 $lblTimer = New-Object System.Windows.Forms.Label
 $lblTimer.Text = ""
-$lblTimer.Location = New-Object System.Drawing.Point(270, 40)
+$lblTimer.Location = New-Object System.Drawing.Point(270, 38)
 $lblTimer.Size = New-Object System.Drawing.Size(170, 20)
 $lblTimer.ForeColor = $colorOrange
 $lblTimer.Font = New-Object System.Drawing.Font("Consolas", 9)
@@ -158,9 +158,9 @@ $groupPassword.Controls.Add($lblTimer)
 
 # System Commands group
 $groupRemote = New-Object System.Windows.Forms.GroupBox
-$groupRemote.Text = "Commands"
-$groupRemote.Location = New-Object System.Drawing.Point(15, 325)
-$groupRemote.Size = New-Object System.Drawing.Size(455, 80)
+$groupRemote.Text = [char]0x0421 + [char]0x0438 + [char]0x0441 + [char]0x0442 + [char]0x0435 + [char]0x043C + [char]0x043D + [char]0x044B + [char]0x0435 + " " + [char]0x043A + [char]0x043E + [char]0x043C + [char]0x0430 + [char]0x043D + [char]0x0434 + [char]0x044B
+$groupRemote.Location = New-Object System.Drawing.Point(15, 290)
+$groupRemote.Size = New-Object System.Drawing.Size(455, 75)
 $groupRemote.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($groupRemote)
 
@@ -174,11 +174,12 @@ $groupRemote.Controls.Add($cmbCommands)
 $btnExecCmd = New-Object System.Windows.Forms.Button
 $btnExecCmd.Text = [char]0x0412 + [char]0x044B + [char]0x043F + [char]0x043E + [char]0x043B + [char]0x043D + [char]0x0438 + [char]0x0442 + [char]0x044C
 $btnExecCmd.Location = New-Object System.Drawing.Point(300, 22)
-$btnExecCmd.Size = New-Object System.Drawing.Size(140, 30)
+$btnExecCmd.Size = New-Object System.Drawing.Size(140, 25)
 $btnExecCmd.BackColor = $colorPrimary
 $btnExecCmd.ForeColor = [System.Drawing.Color]::White
 $btnExecCmd.FlatStyle = "Flat"
 $btnExecCmd.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$btnExecCmd.Cursor = [System.Windows.Forms.Cursors]::Hand
 $groupRemote.Controls.Add($btnExecCmd)
 
 $lblCmdDesc = New-Object System.Windows.Forms.Label
@@ -191,9 +192,9 @@ $groupRemote.Controls.Add($lblCmdDesc)
 
 # Terminal Commands group
 $groupTerminal = New-Object System.Windows.Forms.GroupBox
-$groupTerminal.Text = "Terminal"
-$groupTerminal.Location = New-Object System.Drawing.Point(15, 410)
-$groupTerminal.Size = New-Object System.Drawing.Size(455, 80)
+$groupTerminal.Text = [char]0x0422 + [char]0x0435 + [char]0x0440 + [char]0x043C + [char]0x0438 + [char]0x043D + [char]0x0430 + [char]0x043B + " " + [char]0x0421 + [char]0x0431 + [char]0x0435 + [char]0x0440 + [char]0x0431 + [char]0x0430 + [char]0x043D + [char]0x043A
+$groupTerminal.Location = New-Object System.Drawing.Point(15, 370)
+$groupTerminal.Size = New-Object System.Drawing.Size(455, 75)
 $groupTerminal.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($groupTerminal)
 
@@ -207,11 +208,12 @@ $groupTerminal.Controls.Add($cmbTerminal)
 $btnExecTerminal = New-Object System.Windows.Forms.Button
 $btnExecTerminal.Text = [char]0x0412 + [char]0x044B + [char]0x043F + [char]0x043E + [char]0x043B + [char]0x043D + [char]0x0438 + [char]0x0442 + [char]0x044C
 $btnExecTerminal.Location = New-Object System.Drawing.Point(300, 22)
-$btnExecTerminal.Size = New-Object System.Drawing.Size(140, 30)
+$btnExecTerminal.Size = New-Object System.Drawing.Size(140, 25)
 $btnExecTerminal.BackColor = $colorSuccess
 $btnExecTerminal.ForeColor = [System.Drawing.Color]::White
 $btnExecTerminal.FlatStyle = "Flat"
 $btnExecTerminal.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$btnExecTerminal.Cursor = [System.Windows.Forms.Cursors]::Hand
 $groupTerminal.Controls.Add($btnExecTerminal)
 
 $lblTermDesc = New-Object System.Windows.Forms.Label
@@ -261,71 +263,93 @@ $cmbTerminal.Add_SelectedIndexChanged({
 
 # Buttons panel
 $btnPanel = New-Object System.Windows.Forms.Panel
-$btnPanel.Location = New-Object System.Drawing.Point(15, 500)
-$btnPanel.Size = New-Object System.Drawing.Size(455, 45)
+$btnPanel.Location = New-Object System.Drawing.Point(15, 455)
+$btnPanel.Size = New-Object System.Drawing.Size(455, 55)
 $form.Controls.Add($btnPanel)
 
+# Row 1 - Primary actions
 $btnConnect = New-Object System.Windows.Forms.Button
-$btnConnect.Text = "Connect"
-$btnConnect.Location = New-Object System.Drawing.Point(0, 5)
-$btnConnect.Size = New-Object System.Drawing.Size(85, 35)
+$btnConnect.Text = [char]0x041F + [char]0x043E + [char]0x0434 + [char]0x043A + [char]0x043B
+$btnConnect.Location = New-Object System.Drawing.Point(0, 2)
+$btnConnect.Size = New-Object System.Drawing.Size(90, 25)
 $btnConnect.BackColor = $colorPrimary
 $btnConnect.ForeColor = [System.Drawing.Color]::White
 $btnConnect.FlatStyle = "Flat"
 $btnConnect.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$btnConnect.Cursor = [System.Windows.Forms.Cursors]::Hand
 $btnPanel.Controls.Add($btnConnect)
 
 $btnDisconnect = New-Object System.Windows.Forms.Button
-$btnDisconnect.Text = "Disconnect"
-$btnDisconnect.Location = New-Object System.Drawing.Point(95, 5)
-$btnDisconnect.Size = New-Object System.Drawing.Size(85, 35)
+$btnDisconnect.Text = [char]0x0421 + [char]0x0442 + [char]0x043E + [char]0x043F
+$btnDisconnect.Location = New-Object System.Drawing.Point(100, 2)
+$btnDisconnect.Size = New-Object System.Drawing.Size(90, 25)
 $btnDisconnect.BackColor = $colorRed
 $btnDisconnect.ForeColor = [System.Drawing.Color]::White
 $btnDisconnect.FlatStyle = "Flat"
 $btnDisconnect.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$btnDisconnect.Cursor = [System.Windows.Forms.Cursors]::Hand
 $btnPanel.Controls.Add($btnDisconnect)
 
 $btnCopy = New-Object System.Windows.Forms.Button
-$btnCopy.Text = "Copy Address"
-$btnCopy.Location = New-Object System.Drawing.Point(190, 5)
-$btnCopy.Size = New-Object System.Drawing.Size(95, 35)
+$btnCopy.Text = [char]0x041A + [char]0x043E + [char]0x043F + [char]0x0438 + [char]0x0440 + [char]0x043E + [char]0x0432 + [char]0x0430 + [char]0x0442 + [char]0x044C
+$btnCopy.Location = New-Object System.Drawing.Point(200, 2)
+$btnCopy.Size = New-Object System.Drawing.Size(120, 25)
 $btnCopy.BackColor = $colorPrimary
 $btnCopy.ForeColor = [System.Drawing.Color]::White
 $btnCopy.FlatStyle = "Flat"
-$btnCopy.Font = New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Bold)
+$btnCopy.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$btnCopy.Cursor = [System.Windows.Forms.Cursors]::Hand
 $btnPanel.Controls.Add($btnCopy)
 
+# Row 2 - Utility actions
 $btnTestDriver = New-Object System.Windows.Forms.Button
 $btnTestDriver.Text = [char]0x0422 + [char]0x0435 + [char]0x0441 + [char]0x0442 + " " + [char]0x0434 + [char]0x0440 + [char]0x0430 + [char]0x0439 + [char]0x0432 + [char]0x0435 + [char]0x0440
-$btnTestDriver.Location = New-Object System.Drawing.Point(295, 5)
-$btnTestDriver.Size = New-Object System.Drawing.Size(95, 35)
-$btnTestDriver.BackColor = [System.Drawing.Color]::FromArgb(120, 120, 120)
+$btnTestDriver.Location = New-Object System.Drawing.Point(0, 30)
+$btnTestDriver.Size = New-Object System.Drawing.Size(150, 22)
+$btnTestDriver.BackColor = $colorLightGray
 $btnTestDriver.ForeColor = [System.Drawing.Color]::White
 $btnTestDriver.FlatStyle = "Flat"
-$btnTestDriver.Font = New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Bold)
+$btnTestDriver.Font = New-Object System.Drawing.Font("Segoe UI", 8)
+$btnTestDriver.Cursor = [System.Windows.Forms.Cursors]::Hand
 $btnPanel.Controls.Add($btnTestDriver)
 
 $btnUpdate = New-Object System.Windows.Forms.Button
-$btnUpdate.Text = "Update"
-$btnUpdate.Location = New-Object System.Drawing.Point(400, 5)
-$btnUpdate.Size = New-Object System.Drawing.Size(55, 35)
-$btnUpdate.BackColor = [System.Drawing.Color]::FromArgb(120, 120, 120)
+$btnUpdate.Text = [char]0x041E + [char]0x0431 + [char]0x043D + [char]0x043E + [char]0x0432 + [char]0x0438 + [char]0x0442 + [char]0x044C
+$btnUpdate.Location = New-Object System.Drawing.Point(160, 30)
+$btnUpdate.Size = New-Object System.Drawing.Size(100, 22)
+$btnUpdate.BackColor = $colorLightGray
 $btnUpdate.ForeColor = [System.Drawing.Color]::White
 $btnUpdate.FlatStyle = "Flat"
-$btnUpdate.Font = New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Bold)
+$btnUpdate.Font = New-Object System.Drawing.Font("Segoe UI", 8)
+$btnUpdate.Cursor = [System.Windows.Forms.Cursors]::Hand
 $btnPanel.Controls.Add($btnUpdate)
 
 # Log area
 $logLabel = New-Object System.Windows.Forms.Label
-$logLabel.Text = "Log"
-$logLabel.Location = New-Object System.Drawing.Point(15, 560)
+$logLabel.Text = [char]0x0416 + [char]0x0443 + [char]0x0440 + [char]0x043D + [char]0x0430 + [char]0x043B
+$logLabel.Location = New-Object System.Drawing.Point(15, 520)
 $logLabel.AutoSize = $true
 $logLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($logLabel)
 
+$btnClearLog = New-Object System.Windows.Forms.Button
+$btnClearLog.Text = [char]0x041E + [char]0x0447 + [char]0x0438 + [char]0x0441 + [char]0x0442 + [char]0x0438 + [char]0x0442 + [char]0x044C
+$btnClearLog.Location = New-Object System.Drawing.Point(420, 518)
+$btnClearLog.Size = New-Object System.Drawing.Size(50, 20)
+$btnClearLog.BackColor = $colorLightGray
+$btnClearLog.ForeColor = [System.Drawing.Color]::White
+$btnClearLog.FlatStyle = "Flat"
+$btnClearLog.Font = New-Object System.Drawing.Font("Segoe UI", 7)
+$btnClearLog.Cursor = [System.Windows.Forms.Cursors]::Hand
+$form.Controls.Add($btnClearLog)
+
+$btnClearLog.Add_Click({
+    $logBox.Clear()
+})
+
 $logBox = New-Object System.Windows.Forms.TextBox
-$logBox.Location = New-Object System.Drawing.Point(15, 580)
-$logBox.Size = New-Object System.Drawing.Size(455, 180)
+$logBox.Location = New-Object System.Drawing.Point(15, 542)
+$logBox.Size = New-Object System.Drawing.Size(455, 130)
 $logBox.Multiline = $true
 $logBox.ScrollBars = "Vertical"
 $logBox.ReadOnly = $true
@@ -672,6 +696,27 @@ $btnExecTerminal.Add_Click({
     Add-Log "--- output end ---"
     $btnExecTerminal.Enabled = $true
 })
+
+# Button hover effects
+function Add-ButtonHover {
+    param([System.Windows.Forms.Button]$btn, [System.Drawing.Color]$normalColor)
+    $hoverColor = [System.Drawing.Color]::FromArgb(
+        [Math]::Min(255, $normalColor.R + 30),
+        [Math]::Min(255, $normalColor.G + 30),
+        [Math]::Min(255, $normalColor.B + 30)
+    )
+    $btn.Add_MouseEnter({ $this.BackColor = $hoverColor })
+    $btn.Add_MouseLeave({ $this.BackColor = $normalColor })
+}
+
+Add-ButtonHover $btnConnect $colorPrimary
+Add-ButtonHover $btnDisconnect $colorRed
+Add-ButtonHover $btnCopy $colorPrimary
+Add-ButtonHover $btnTestDriver $colorLightGray
+Add-ButtonHover $btnUpdate $colorLightGray
+Add-ButtonHover $btnExecCmd $colorPrimary
+Add-ButtonHover $btnExecTerminal $colorSuccess
+Add-ButtonHover $btnClearLog $colorLightGray
 
 # Startup
 Rotate-Logs
