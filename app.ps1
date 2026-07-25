@@ -34,6 +34,8 @@ $appVersion = if (Test-Path $localVersionFile) { (Get-Content $localVersionFile 
 $script:connected = $false
 $script:connectTime = $null
 $script:connectedKassa = ""
+$script:connectedIP = ""
+$script:connectedPw = ""
 
 # Colors - Material Design light palette
 $colorPrimary   = [System.Drawing.Color]::FromArgb(25, 118, 210)
@@ -55,7 +57,7 @@ $colorLightGray = [System.Drawing.Color]::FromArgb(158, 158, 158)
 # Form
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "POScenter FR Manager v$appVersion"
-$form.Size = New-Object System.Drawing.Size(500, 620)
+$form.Size = New-Object System.Drawing.Size(500, 770)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "Sizable"
 $form.TopMost = $false
@@ -99,6 +101,7 @@ $listView.Size = New-Object System.Drawing.Size(435, 128)
 $listView.View = "Details"
 $listView.FullRowSelect = $true
 $listView.GridLines = $true
+$listView.HideSelection = $false
 $listView.Font = New-Object System.Drawing.Font("Segoe UI", 9)
 $listView.Columns.Add("Name", 120) | Out-Null
 $listView.Columns.Add("IP Address", 160) | Out-Null
@@ -114,36 +117,30 @@ $groupKassas.Controls.Add($listView)
 $groupPassword = New-Object System.Windows.Forms.GroupBox
 $groupPassword.Text = "Connection"
 $groupPassword.Location = New-Object System.Drawing.Point(15, 230)
-$groupPassword.Size = New-Object System.Drawing.Size(455, 85)
+$groupPassword.Size = New-Object System.Drawing.Size(455, 65)
 $groupPassword.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($groupPassword)
 
-$pwLabel = New-Object System.Windows.Forms.Label
-$pwLabel.Text = "Password:"
-$pwLabel.Location = New-Object System.Drawing.Point(10, 25)
-$pwLabel.AutoSize = $true
-$groupPassword.Controls.Add($pwLabel)
-
-$pwBox = New-Object System.Windows.Forms.TextBox
-$pwBox.Location = New-Object System.Drawing.Point(80, 22)
-$pwBox.Size = New-Object System.Drawing.Size(200, 25)
-$pwBox.UseSystemPasswordChar = $true
-$pwBox.Font = New-Object System.Drawing.Font("Segoe UI", 10)
-$groupPassword.Controls.Add($pwBox)
-
 $lblStatus = New-Object System.Windows.Forms.Label
 $lblStatus.Text = "Ready"
-$lblStatus.Location = New-Object System.Drawing.Point(290, 25)
-$lblStatus.Size = New-Object System.Drawing.Size(150, 20)
+$lblStatus.Location = New-Object System.Drawing.Point(10, 20)
+$lblStatus.Size = New-Object System.Drawing.Size(200, 20)
 $lblStatus.ForeColor = $colorGreen
 $lblStatus.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
-$lblStatus.TextAlign = "MiddleRight"
 $groupPassword.Controls.Add($lblStatus)
+
+$lblUser = New-Object System.Windows.Forms.Label
+$lblUser.Text = "root@"
+$lblUser.Location = New-Object System.Drawing.Point(220, 20)
+$lblUser.AutoSize = $true
+$lblUser.ForeColor = $colorLightGray
+$lblUser.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+$groupPassword.Controls.Add($lblUser)
 
 # FR Address display
 $lblFrAddr = New-Object System.Windows.Forms.Label
 $lblFrAddr.Text = "FR: 127.0.0.1:$($config.local_port)"
-$lblFrAddr.Location = New-Object System.Drawing.Point(10, 52)
+$lblFrAddr.Location = New-Object System.Drawing.Point(10, 40)
 $lblFrAddr.Size = New-Object System.Drawing.Size(250, 20)
 $lblFrAddr.ForeColor = $colorAccent
 $lblFrAddr.Font = New-Object System.Drawing.Font("Consolas", 9, [System.Drawing.FontStyle]::Bold)
@@ -152,16 +149,119 @@ $groupPassword.Controls.Add($lblFrAddr)
 # Connection timer
 $lblTimer = New-Object System.Windows.Forms.Label
 $lblTimer.Text = ""
-$lblTimer.Location = New-Object System.Drawing.Point(270, 52)
+$lblTimer.Location = New-Object System.Drawing.Point(270, 40)
 $lblTimer.Size = New-Object System.Drawing.Size(170, 20)
 $lblTimer.ForeColor = $colorOrange
 $lblTimer.Font = New-Object System.Drawing.Font("Consolas", 9)
 $lblTimer.TextAlign = "MiddleRight"
 $groupPassword.Controls.Add($lblTimer)
 
+# System Commands group
+$groupRemote = New-Object System.Windows.Forms.GroupBox
+$groupRemote.Text = "Commands"
+$groupRemote.Location = New-Object System.Drawing.Point(15, 325)
+$groupRemote.Size = New-Object System.Drawing.Size(455, 80)
+$groupRemote.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$form.Controls.Add($groupRemote)
+
+$cmbCommands = New-Object System.Windows.Forms.ComboBox
+$cmbCommands.Location = New-Object System.Drawing.Point(10, 25)
+$cmbCommands.Size = New-Object System.Drawing.Size(280, 25)
+$cmbCommands.DropDownStyle = "DropDownList"
+$cmbCommands.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+$groupRemote.Controls.Add($cmbCommands)
+
+$btnExecCmd = New-Object System.Windows.Forms.Button
+$btnExecCmd.Text = [char]0x0412 + [char]0x044B + [char]0x043F + [char]0x043E + [char]0x043B + [char]0x043D + [char]0x0438 + [char]0x0442 + [char]0x044C
+$btnExecCmd.Location = New-Object System.Drawing.Point(300, 22)
+$btnExecCmd.Size = New-Object System.Drawing.Size(140, 30)
+$btnExecCmd.BackColor = $colorPrimary
+$btnExecCmd.ForeColor = [System.Drawing.Color]::White
+$btnExecCmd.FlatStyle = "Flat"
+$btnExecCmd.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$groupRemote.Controls.Add($btnExecCmd)
+
+$lblCmdDesc = New-Object System.Windows.Forms.Label
+$lblCmdDesc.Text = ""
+$lblCmdDesc.Location = New-Object System.Drawing.Point(10, 55)
+$lblCmdDesc.Size = New-Object System.Drawing.Size(435, 20)
+$lblCmdDesc.ForeColor = $colorLightGray
+$lblCmdDesc.Font = New-Object System.Drawing.Font("Segoe UI", 8)
+$groupRemote.Controls.Add($lblCmdDesc)
+
+# Terminal Commands group
+$groupTerminal = New-Object System.Windows.Forms.GroupBox
+$groupTerminal.Text = "Terminal"
+$groupTerminal.Location = New-Object System.Drawing.Point(15, 410)
+$groupTerminal.Size = New-Object System.Drawing.Size(455, 80)
+$groupTerminal.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$form.Controls.Add($groupTerminal)
+
+$cmbTerminal = New-Object System.Windows.Forms.ComboBox
+$cmbTerminal.Location = New-Object System.Drawing.Point(10, 25)
+$cmbTerminal.Size = New-Object System.Drawing.Size(280, 25)
+$cmbTerminal.DropDownStyle = "DropDownList"
+$cmbTerminal.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+$groupTerminal.Controls.Add($cmbTerminal)
+
+$btnExecTerminal = New-Object System.Windows.Forms.Button
+$btnExecTerminal.Text = [char]0x0412 + [char]0x044B + [char]0x043F + [char]0x043E + [char]0x043B + [char]0x043D + [char]0x0438 + [char]0x0442 + [char]0x044C
+$btnExecTerminal.Location = New-Object System.Drawing.Point(300, 22)
+$btnExecTerminal.Size = New-Object System.Drawing.Size(140, 30)
+$btnExecTerminal.BackColor = $colorSuccess
+$btnExecTerminal.ForeColor = [System.Drawing.Color]::White
+$btnExecTerminal.FlatStyle = "Flat"
+$btnExecTerminal.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$groupTerminal.Controls.Add($btnExecTerminal)
+
+$lblTermDesc = New-Object System.Windows.Forms.Label
+$lblTermDesc.Text = ""
+$lblTermDesc.Location = New-Object System.Drawing.Point(10, 55)
+$lblTermDesc.Size = New-Object System.Drawing.Size(435, 20)
+$lblTermDesc.ForeColor = $colorLightGray
+$lblTermDesc.Font = New-Object System.Drawing.Font("Segoe UI", 8)
+$groupTerminal.Controls.Add($lblTermDesc)
+
+# Populate command lists
+if ($config.remote_commands) {
+    foreach ($cmd in $config.remote_commands) {
+        if ($cmd.group -eq "terminal") {
+            $cmbTerminal.Items.Add($cmd.label) | Out-Null
+        } else {
+            $cmbCommands.Items.Add($cmd.label) | Out-Null
+        }
+    }
+    if ($cmbCommands.Items.Count -gt 0) { $cmbCommands.SelectedIndex = 0 }
+    if ($cmbTerminal.Items.Count -gt 0) { $cmbTerminal.SelectedIndex = 0 }
+}
+
+$cmbCommands.Add_SelectedIndexChanged({
+    if ($cmbCommands.SelectedIndex -ge 0) {
+        $sel = $cmbCommands.SelectedItem
+        $cmdObj = $config.remote_commands | Where-Object { $_.label -eq $sel } | Select-Object -First 1
+        if ($cmdObj -and $cmdObj.description) {
+            $lblCmdDesc.Text = $cmdObj.description
+        } else {
+            $lblCmdDesc.Text = ""
+        }
+    }
+})
+
+$cmbTerminal.Add_SelectedIndexChanged({
+    if ($cmbTerminal.SelectedIndex -ge 0) {
+        $sel = $cmbTerminal.SelectedItem
+        $cmdObj = $config.remote_commands | Where-Object { $_.label -eq $sel } | Select-Object -First 1
+        if ($cmdObj -and $cmdObj.description) {
+            $lblTermDesc.Text = $cmdObj.description
+        } else {
+            $lblTermDesc.Text = ""
+        }
+    }
+})
+
 # Buttons panel
 $btnPanel = New-Object System.Windows.Forms.Panel
-$btnPanel.Location = New-Object System.Drawing.Point(15, 325)
+$btnPanel.Location = New-Object System.Drawing.Point(15, 500)
 $btnPanel.Size = New-Object System.Drawing.Size(455, 45)
 $form.Controls.Add($btnPanel)
 
@@ -218,13 +318,13 @@ $btnPanel.Controls.Add($btnUpdate)
 # Log area
 $logLabel = New-Object System.Windows.Forms.Label
 $logLabel.Text = "Log"
-$logLabel.Location = New-Object System.Drawing.Point(15, 380)
+$logLabel.Location = New-Object System.Drawing.Point(15, 560)
 $logLabel.AutoSize = $true
 $logLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($logLabel)
 
 $logBox = New-Object System.Windows.Forms.TextBox
-$logBox.Location = New-Object System.Drawing.Point(15, 400)
+$logBox.Location = New-Object System.Drawing.Point(15, 580)
 $logBox.Size = New-Object System.Drawing.Size(455, 180)
 $logBox.Multiline = $true
 $logBox.ScrollBars = "Vertical"
@@ -295,16 +395,12 @@ $btnConnect.Add_Click({
         Add-Log "Select a cash register"
         return
     }
-    if ([string]::IsNullOrEmpty($pwBox.Text)) {
-        Add-Log "Enter password"
-        return
-    }
 
     $btnConnect.Enabled = $false
     $selected = $listView.SelectedItems[0]
     $kassaIP = $selected.SubItems[1].Text
     $kassaName = $selected.Text
-    $pw = $pwBox.Text
+    $pw = $config.ssh_password
 
     Set-Status "Connecting..." "yellow"
     Add-Log "=== Connecting to $kassaName ($kassaIP) ==="
@@ -323,7 +419,6 @@ $btnConnect.Add_Click({
     } else {
         Add-Log "   FAILED - check password/IP"
         Set-Status "SSH Failed" "red"
-        $pwBox.Text = [string]::Empty
         $btnConnect.Enabled = $true
         return
     }
@@ -378,6 +473,8 @@ $btnConnect.Add_Click({
         $script:connected = $true
         $script:connectTime = Get-Date
         $script:connectedKassa = $kassaName
+        $script:connectedIP = $kassaIP
+        $script:connectedPw = $pw
         $timer.Start()
     } else {
         Add-Log "   Port NOT listening after ${maxRetries}s"
@@ -386,7 +483,6 @@ $btnConnect.Add_Click({
         Stop-PlinkTunnels
     }
 
-    $pwBox.Text = [string]::Empty
     $btnConnect.Enabled = $true
     Write-AppLog "Connection attempt completed"
 })
@@ -398,6 +494,8 @@ $btnDisconnect.Add_Click({
     Set-Status "Disconnected" "gray"
     $script:connected = $false
     $script:connectTime = $null
+    $script:connectedIP = ""
+    $script:connectedPw = ""
     $timer.Stop()
     $lblTimer.Text = ""
 })
@@ -429,6 +527,150 @@ $btnTestDriver.Add_Click({
             "Warning"
         )
     }
+})
+
+# Remote command execute button
+$btnExecCmd.Add_Click({
+    if ($cmbCommands.SelectedIndex -lt 0) {
+        Add-Log "Select a command"
+        return
+    }
+
+    $selectedLabel = $cmbCommands.SelectedItem
+    $cmdObj = $config.remote_commands | Where-Object { $_.label -eq $selectedLabel } | Select-Object -First 1
+    if (-not $cmdObj) {
+        Add-Log "Command not found: $selectedLabel"
+        return
+    }
+
+    $btnExecCmd.Enabled = $false
+    Add-Log ">>> ${selectedLabel}: $($cmdObj.command)"
+    Add-Log "--- output start ---"
+
+    try {
+        if ($cmdObj.local) {
+            # Local command execution
+            $scriptPath = Join-Path $scriptDir $cmdObj.command
+            if (Test-Path $scriptPath) {
+                $result = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -Silent 2>&1
+            } else {
+                $result = & $cmdObj.command 2>&1
+            }
+        } else {
+            # Remote SSH command - auto-connect if needed
+            $kassaIP = $script:connectedIP
+            $kassaPw = $script:connectedPw
+
+            if (-not $script:connected) {
+                # Use selected kassa from list and password from input
+                if ($listView.SelectedItems.Count -eq 0) {
+                    Add-Log "Select a cash register"
+                    Add-Log "--- output end ---"
+                    $btnExecCmd.Enabled = $true
+                    return
+                }
+                $kassaIP = $listView.SelectedItems[0].SubItems[1].Text
+                $kassaPw = $config.ssh_password
+                Add-Log "Connecting to $kassaIP..."
+
+                # Test SSH connection
+                $test = & $plinkPath -batch -ssh -P $config.ssh_port -pw $kassaPw -l $config.ssh_user $kassaIP "echo SSH_OK" 2>&1
+                $testStr = ($test -join "`n").Trim()
+                if ($testStr -notmatch "SSH_OK") {
+                    Add-Log "SSH error - check password/IP"
+                    Add-Log "--- output end ---"
+                    $btnExecCmd.Enabled = $true
+                    return
+                }
+                Add-Log "SSH OK"
+            }
+
+            $result = Invoke-Plink -PlinkPath $plinkPath -HostName $kassaIP -Port $config.ssh_port `
+                -User $config.ssh_user -Password $kassaPw -Command $cmdObj.command
+        }
+        if ($result -and $result.Count -gt 0) {
+            foreach ($line in $result) {
+                Add-Log "$line"
+            }
+        } else {
+            Add-Log "(no output)"
+        }
+    } catch {
+        Add-Log "Error: $_"
+    }
+
+    Add-Log "--- output end ---"
+    $btnExecCmd.Enabled = $true
+})
+
+# Terminal command execute button
+$btnExecTerminal.Add_Click({
+    if ($cmbTerminal.SelectedIndex -lt 0) {
+        Add-Log "Select a command"
+        return
+    }
+
+    $selectedLabel = $cmbTerminal.SelectedItem
+    $cmdObj = $config.remote_commands | Where-Object { $_.label -eq $selectedLabel } | Select-Object -First 1
+    if (-not $cmdObj) {
+        Add-Log "Command not found: $selectedLabel"
+        return
+    }
+
+    $btnExecTerminal.Enabled = $false
+    Add-Log ">>> ${selectedLabel}: $($cmdObj.command)"
+    Add-Log "--- output start ---"
+
+    try {
+        if ($cmdObj.local) {
+            $scriptPath = Join-Path $scriptDir $cmdObj.command
+            if (Test-Path $scriptPath) {
+                $result = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -Silent 2>&1
+            } else {
+                $result = & $cmdObj.command 2>&1
+            }
+        } else {
+            $kassaIP = $script:connectedIP
+            $kassaPw = $script:connectedPw
+
+            if (-not $script:connected) {
+                if ($listView.SelectedItems.Count -eq 0) {
+                    Add-Log "Select a cash register"
+                    Add-Log "--- output end ---"
+                    $btnExecTerminal.Enabled = $true
+                    return
+                }
+                $kassaIP = $listView.SelectedItems[0].SubItems[1].Text
+                $kassaPw = $config.ssh_password
+                Add-Log "Connecting to $kassaIP..."
+
+                $test = & $plinkPath -batch -ssh -P $config.ssh_port -pw $kassaPw -l $config.ssh_user $kassaIP "echo SSH_OK" 2>&1
+                $testStr = ($test -join "`n").Trim()
+                if ($testStr -notmatch "SSH_OK") {
+                    Add-Log "SSH error - check password/IP"
+                    Add-Log "--- output end ---"
+                    $btnExecTerminal.Enabled = $true
+                    return
+                }
+                Add-Log "SSH OK"
+            }
+
+            $result = Invoke-Plink -PlinkPath $plinkPath -HostName $kassaIP -Port $config.ssh_port `
+                -User $config.ssh_user -Password $kassaPw -Command $cmdObj.command
+        }
+        if ($result -and $result.Count -gt 0) {
+            foreach ($line in $result) {
+                Add-Log "$line"
+            }
+        } else {
+            Add-Log "(no output)"
+        }
+    } catch {
+        Add-Log "Error: $_"
+    }
+
+    Add-Log "--- output end ---"
+    $btnExecTerminal.Enabled = $true
 })
 
 # Startup

@@ -9,7 +9,7 @@ function Read-Config {
     }
 
     try {
-        $raw = Get-Content $ConfigPath -Raw -ErrorAction Stop
+        $raw = Get-Content $ConfigPath -Raw -Encoding UTF8 -ErrorAction Stop
         $config = $raw | ConvertFrom-Json -ErrorAction Stop
     } catch {
         throw "Failed to parse config.json: $_"

@@ -4,7 +4,7 @@
 function Invoke-Plink {
     param(
         [Parameter(Mandatory)] [string]$PlinkPath,
-        [Parameter(Mandatory)] [string]$Host,
+        [Parameter(Mandatory)] [string]$HostName,
         [Parameter(Mandatory)] [int]$Port,
         [Parameter(Mandatory)] [string]$User,
         [Parameter(Mandatory)] [string]$Password,
@@ -14,14 +14,14 @@ function Invoke-Plink {
         throw "plink.exe not found: $PlinkPath"
     }
 
-    $output = & $PlinkPath -batch -ssh -P $Port -pw $Password -l $User $Host $Command 2>&1
+    $output = & $PlinkPath -batch -ssh -P $Port -pw $Password -l $User $HostName $Command 2>&1
     return $output
 }
 
 function Start-PlinkTunnel {
     param(
         [Parameter(Mandatory)] [string]$PlinkPath,
-        [Parameter(Mandatory)] [string]$Host,
+        [Parameter(Mandatory)] [string]$HostName,
         [Parameter(Mandatory)] [int]$Port,
         [Parameter(Mandatory)] [string]$User,
         [Parameter(Mandatory)] [string]$Password,
@@ -33,7 +33,7 @@ function Start-PlinkTunnel {
         throw "plink.exe not found: $PlinkPath"
     }
 
-    $tunnelArgs = "-batch -ssh -P $Port -pw $Password -l $User -L ${LocalPort}:${RemoteHost}:${RemotePort} -N $Host"
+    $tunnelArgs = "-batch -ssh -P $Port -pw $Password -l $User -L ${LocalPort}:${RemoteHost}:${RemotePort} -N $HostName"
     $proc = Start-Process -FilePath $PlinkPath -ArgumentList $tunnelArgs -PassThru -WindowStyle Hidden
     return $proc
 }
