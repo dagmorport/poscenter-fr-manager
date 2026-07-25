@@ -89,7 +89,7 @@ $titlePanel.Controls.Add($versionLabel)
 
 # Cash registers group
 $groupKassas = New-Object System.Windows.Forms.GroupBox
-$groupKassas.Text = "Кассы"
+$groupKassas.Text = [char]0x041A + [char]0x0430 + [char]0x0441 + [char]0x0441 + [char]0x044B
 $groupKassas.Location = New-Object System.Drawing.Point(15, 60)
 $groupKassas.Size = New-Object System.Drawing.Size(455, 150)
 $groupKassas.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
@@ -115,7 +115,7 @@ $groupKassas.Controls.Add($listView)
 
 # System Commands group
 $groupRemote = New-Object System.Windows.Forms.GroupBox
-$groupRemote.Text = "Системные команды"
+$groupRemote.Text = [char]0x0421 + [char]0x0438 + [char]0x0441 + [char]0x0442 + [char]0x0435 + [char]0x043C + [char]0x043D + [char]0x044B + [char]0x0435 + " " + [char]0x043A + [char]0x043E + [char]0x043C + [char]0x0430 + [char]0x043D + [char]0x0434 + [char]0x044B
 $groupRemote.Location = New-Object System.Drawing.Point(15, 220)
 $groupRemote.Size = New-Object System.Drawing.Size(455, 75)
 $groupRemote.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
@@ -129,7 +129,7 @@ $cmbCommands.Font = New-Object System.Drawing.Font("Segoe UI", 9)
 $groupRemote.Controls.Add($cmbCommands)
 
 $btnExecCmd = New-Object System.Windows.Forms.Button
-$btnExecCmd.Text = "Выполнить"
+$btnExecCmd.Text = [char]0x0412 + [char]0x044B + [char]0x043F + [char]0x043E + [char]0x043B + [char]0x043D + [char]0x0438 + [char]0x0442 + [char]0x044C
 $btnExecCmd.Location = New-Object System.Drawing.Point(300, 22)
 $btnExecCmd.Size = New-Object System.Drawing.Size(140, 25)
 $btnExecCmd.BackColor = $colorPrimary
@@ -163,7 +163,7 @@ $cmbTerminal.Font = New-Object System.Drawing.Font("Segoe UI", 9)
 $groupTerminal.Controls.Add($cmbTerminal)
 
 $btnExecTerminal = New-Object System.Windows.Forms.Button
-$btnExecTerminal.Text = "Выполнить"
+$btnExecTerminal.Text = [char]0x0412 + [char]0x044B + [char]0x043F + [char]0x043E + [char]0x043B + [char]0x043D + [char]0x0438 + [char]0x0442 + [char]0x044C
 $btnExecTerminal.Location = New-Object System.Drawing.Point(300, 22)
 $btnExecTerminal.Size = New-Object System.Drawing.Size(140, 25)
 $btnExecTerminal.BackColor = $colorSuccess
@@ -217,7 +217,7 @@ $btnPanel.Size = New-Object System.Drawing.Size(455, 55)
 $form.Controls.Add($btnPanel)
 
 $btnConnect = New-Object System.Windows.Forms.Button
-$btnConnect.Text = "Подкл"
+$btnConnect.Text = [char]0x041F + [char]0x043E + [char]0x0434 + [char]0x043A + [char]0x043B
 $btnConnect.Location = New-Object System.Drawing.Point(0, 2)
 $btnConnect.Size = New-Object System.Drawing.Size(100, 25)
 $btnConnect.BackColor = $colorPrimary
@@ -228,7 +228,7 @@ $btnConnect.Cursor = [System.Windows.Forms.Cursors]::Hand
 $btnPanel.Controls.Add($btnConnect)
 
 $btnDisconnect = New-Object System.Windows.Forms.Button
-$btnDisconnect.Text = "Стоп"
+$btnDisconnect.Text = [char]0x0421 + [char]0x0442 + [char]0x043E + [char]0x043F
 $btnDisconnect.Location = New-Object System.Drawing.Point(110, 2)
 $btnDisconnect.Size = New-Object System.Drawing.Size(100, 25)
 $btnDisconnect.BackColor = $colorRed
@@ -239,7 +239,7 @@ $btnDisconnect.Cursor = [System.Windows.Forms.Cursors]::Hand
 $btnPanel.Controls.Add($btnDisconnect)
 
 $btnTestDriver = New-Object System.Windows.Forms.Button
-$btnTestDriver.Text = "Тест драйвер"
+$btnTestDriver.Text = [char]0x0422 + [char]0x0435 + [char]0x0441 + [char]0x0442 + " " + [char]0x0434 + [char]0x0440 + [char]0x0430 + [char]0x0439 + [char]0x0432 + [char]0x0435 + [char]0x0440
 $btnTestDriver.Location = New-Object System.Drawing.Point(0, 30)
 $btnTestDriver.Size = New-Object System.Drawing.Size(150, 22)
 $btnTestDriver.BackColor = $colorLightGray
@@ -250,7 +250,7 @@ $btnTestDriver.Cursor = [System.Windows.Forms.Cursors]::Hand
 $btnPanel.Controls.Add($btnTestDriver)
 
 $btnUpdate = New-Object System.Windows.Forms.Button
-$btnUpdate.Text = "Обновить"
+$btnUpdate.Text = [char]0x041E + [char]0x0431 + [char]0x043D + [char]0x043E + [char]0x0432 + [char]0x0438 + [char]0x0442 + [char]0x044C
 $btnUpdate.Location = New-Object System.Drawing.Point(160, 30)
 $btnUpdate.Size = New-Object System.Drawing.Size(100, 22)
 $btnUpdate.BackColor = $colorLightGray
@@ -262,14 +262,14 @@ $btnPanel.Controls.Add($btnUpdate)
 
 # Log area
 $logLabel = New-Object System.Windows.Forms.Label
-$logLabel.Text = "Журнал"
+$logLabel.Text = [char]0x0416 + [char]0x0443 + [char]0x0440 + [char]0x043D + [char]0x0430 + [char]0x043B
 $logLabel.Location = New-Object System.Drawing.Point(15, 455)
 $logLabel.AutoSize = $true
 $logLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($logLabel)
 
 $btnClearLog = New-Object System.Windows.Forms.Button
-$btnClearLog.Text = "Очистить"
+$btnClearLog.Text = [char]0x041E + [char]0x0447 + [char]0x0438 + [char]0x0441 + [char]0x0442 + [char]0x0438 + [char]0x0442 + [char]0x044C
 $btnClearLog.Location = New-Object System.Drawing.Point(420, 453)
 $btnClearLog.Size = New-Object System.Drawing.Size(50, 20)
 $btnClearLog.BackColor = $colorLightGray
