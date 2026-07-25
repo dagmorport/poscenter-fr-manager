@@ -405,8 +405,9 @@ function Add-ButtonHover {
         [Math]::Min(255, $normalColor.G + 30),
         [Math]::Min(255, $normalColor.B + 30)
     )
-    $btn.Add_MouseEnter({ $this.BackColor = $hoverColor })
-    $btn.Add_MouseLeave({ $this.BackColor = $normalColor })
+    $btn.Tag = @{ Normal = $normalColor; Hover = $hoverColor }
+    $btn.Add_MouseEnter({ $this.BackColor = $this.Tag.Hover })
+    $btn.Add_MouseLeave({ $this.BackColor = $this.Tag.Normal })
 }
 
 Add-ButtonHover $btnConnect $colorPrimary
