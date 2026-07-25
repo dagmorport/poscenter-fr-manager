@@ -260,6 +260,14 @@ $btnUpdate.Font = New-Object System.Drawing.Font("Segoe UI", 8)
 $btnUpdate.Cursor = [System.Windows.Forms.Cursors]::Hand
 $btnPanel.Controls.Add($btnUpdate)
 
+$lblPoscenter = New-Object System.Windows.Forms.Label
+$lblPoscenter.Text = "POScenter"
+$lblPoscenter.Location = New-Object System.Drawing.Point(270, 33)
+$lblPoscenter.AutoSize = $true
+$lblPoscenter.ForeColor = $colorLightGray
+$lblPoscenter.Font = New-Object System.Drawing.Font("Segoe UI", 8, [System.Drawing.FontStyle]::Italic)
+$btnPanel.Controls.Add($lblPoscenter)
+
 # Log area
 $logLabel = New-Object System.Windows.Forms.Label
 $logLabel.Text = [char]0x0416 + [char]0x0443 + [char]0x0440 + [char]0x043D + [char]0x0430 + [char]0x043B
