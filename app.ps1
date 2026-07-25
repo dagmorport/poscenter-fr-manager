@@ -634,14 +634,15 @@ $btnFrStatus.Add_Click({
         Add-Log "SSH OK"
     }
 
-    Add-Log "=== FR Status: $kassaIP ==="
+    Add-Log "========================================"
+    Add-Log "FR Status: $kassaIP"
+    Add-Log "========================================"
 
-    # Try InfoClient binary first
+    # Get InfoClient data
     $infoClient = & $plinkPath -batch -ssh -P $config.ssh_port -pw $kassaPw -l $config.ssh_user $kassaIP "/linuxcash/cash/bin/InfoClient 2>&1" 2>&1
     $infoStr = ($infoClient -join "`n").Trim()
 
     if ($infoStr -and $infoStr.Length -gt 10) {
-        # Parse key=value pairs
         $pairs = $infoStr -split "&"
         $parsed = @{}
         foreach ($pair in $pairs) {
@@ -651,31 +652,69 @@ $btnFrStatus.Add_Click({
             }
         }
 
+        Add-Log ""
         Add-Log "--- KKM Info ---"
-        if ($parsed.model) { Add-Log "Model: $($parsed.model)" }
+        if ($parsed.modelName) { Add-Log "Model: $($parsed.modelName)" }
+        if ($parsed.model) { Add-Log "Model Code: $($parsed.model)" }
         if ($parsed.number) { Add-Log "Serial: $($parsed.number)" }
         if ($parsed.firmware) { Add-Log "Firmware: $($parsed.firmware)" }
         if ($parsed.ffd_version) { Add-Log "FFD Version: $($parsed.ffd_version)" }
+        if ($parsed.producer) { Add-Log "Producer: $($parsed.producer)" }
 
+        Add-Log ""
         Add-Log "--- FN Info ---"
         if ($parsed.fn) { Add-Log "FN Present: $($parsed.fn)" }
         if ($parsed.fn_number) { Add-Log "FN Number: $($parsed.fn_number)" }
-        if ($parsed.fn_time_end) { Add-Log "FN Expiry: $($parsed.fn_time_end)" }
         if ($parsed.fn_version) { Add-Log "FN Version: $($parsed.fn_version)" }
+        if ($parsed.fn_time_end) {
+            Add-Log "FN Expiry: $($parsed.fn_time_end)"
+            if ($parsed.fn_days_left) {
+                $days = [int]$parsed.fn_days_left
+                if ($days -lt 30) {
+                    Add-Log "WARNING: FN expires in $days days!"
+                } else {
+                    Add-Log "FN Days Left: $days"
+                }
+            }
+        }
+        if ($parsed.fn_registration_count) { Add-Log "Reg Remaining: $($parsed.fn_registration_count)" }
+        if ($parsed.fn_registration_used) { Add-Log "Reg Used: $($parsed.fn_registration_used)" }
 
+        Add-Log ""
         Add-Log "--- Documents ---"
         if ($parsed.fn_last_doc_num) { Add-Log "Last Doc #: $($parsed.fn_last_doc_num)" }
         if ($parsed.fn_last_doc_date) { Add-Log "Last Doc Date: $($parsed.fn_last_doc_date)" }
-        if ($parsed.fn_not_send_doc_count) { Add-Log "Not Sent to OFD: $($parsed.fn_not_send_doc_count)" }
+        if ($parsed.fn_not_send_doc_count) {
+            $notSent = [int]$parsed.fn_not_send_doc_count
+            if ($notSent -gt 0) {
+                Add-Log "NOT SENT TO OFD: $notSent"
+            } else {
+                Add-Log "Not Sent to OFD: 0 (all sent)"
+            }
+        }
         if ($parsed.fn_earliest_not_send_doc_date) { Add-Log "Earliest Not Sent: $($parsed.fn_earliest_not_send_doc_date)" }
 
+        Add-Log ""
         Add-Log "--- Status ---"
-        if ($parsed.fn_connection_status) { Add-Log "OFD Connection: $($parsed.fn_connection_status)" }
-        if ($parsed.fpcountleft) { Add-Log "Shifts Left: $($parsed.fpcountleft)" }
-        if ($parsed.fn_registration_count) { Add-Log "Reg Remaining: $($parsed.fn_registration_count)" }
-        if ($parsed.fn_registration_used) { Add-Log "Reg Used: $($parsed.fn_registration_used)" }
+        if ($parsed.fn_connection_status) {
+            $ofdStatus = $parsed.fn_connection_status
+            if ($ofdStatus -eq "true") {
+                Add-Log "OFD Connection: OK"
+            } else {
+                Add-Log "OFD Connection: NOT CONNECTED"
+            }
+        }
+        if ($parsed.fpcountleft) {
+            $shifts = [int]$parsed.fpcountleft
+            if ($shifts -eq 0) {
+                Add-Log "Shifts Left: 0 (FISCAL MEMORY FULL)"
+            } else {
+                Add-Log "Shifts Left: $shifts"
+            }
+        }
+        if ($parsed.fn_att_flags) { Add-Log "FN Warning Flags: $($parsed.fn_att_flags)" }
+        if ($parsed.ism_not_sent_count) { Add-Log "ISM Not Sent: $($parsed.ism_not_sent_count)" }
     } else {
-        # Fallback: try reading JSON file
         Add-Log "InfoClient not available, trying JSON..."
         $jsonOut = & $plinkPath -batch -ssh -P $config.ssh_port -pw $kassaPw -l $config.ssh_user $kassaIP "cat /linuxcash/cash/data/info/kkm.json 2>&1" 2>&1
         $jsonStr = ($jsonOut -join "`n").Trim()
@@ -686,14 +725,12 @@ $btnFrStatus.Add_Click({
                 Add-Log "--- KKM Info (JSON) ---"
                 Add-Log "Model: $($json.modelName)"
                 Add-Log "Serial: $($json.number)"
-                Add-Log "Producer: $($json.producer)"
-                Add-Log "--- FN Info ---"
                 Add-Log "FN Number: $($json.fn_number)"
                 Add-Log "FN Expiry: $($json.fn_time_end)"
-                Add-Log "Last Doc #: $($json.fn_last_doc_num)"
+                Add-Log "Last Doc: $($json.fn_last_doc_num)"
                 Add-Log "Not Sent: $($json.fn_not_send_doc_count)"
-                Add-Log "OFD Status: $($json.fn_connection_status)"
-                Add-Log "Shifts Left: $($json.fpcountleft)"
+                Add-Log "OFD: $($json.fn_connection_status)"
+                Add-Log "Shifts: $($json.fpcountleft)"
             } catch {
                 Add-Log "JSON parse error: $_"
             }
@@ -702,7 +739,65 @@ $btnFrStatus.Add_Click({
         }
     }
 
-    Add-Log "=== End FR Status ==="
+    # Get License info
+    Add-Log ""
+    Add-Log "--- License ---"
+    $licOut = & $plinkPath -batch -ssh -P $config.ssh_port -pw $kassaPw -l $config.ssh_user $kassaIP "cat /linuxcash/cash/data/info/license.json 2>&1" 2>&1
+    $licStr = ($licOut -join "`n").Trim()
+
+    if ($licStr -and $licStr.Length -gt 10) {
+        try {
+            $lic = $licStr | ConvertFrom-Json
+            if ($lic.key) { Add-Log "License Key: $($lic.key)" }
+            if ($lic.type) { Add-Log "Type: $($lic.type)" }
+            if ($lic.exp_date_str) { Add-Log "Expiry: $($lic.exp_date_str)" }
+            if ($lic.time_left) { Add-Log "Time Left: $($lic.time_left) sec" }
+            if ($lic.product) { Add-Log "Product: $($lic.product)" }
+        } catch {
+            Add-Log "License parse error"
+        }
+    } else {
+        Add-Log "License info not available"
+    }
+
+    # Get Version info
+    Add-Log ""
+    Add-Log "--- Version ---"
+    $verOut = & $plinkPath -batch -ssh -P $config.ssh_port -pw $kassaPw -l $config.ssh_user $kassaIP "cat /linuxcash/cash/data/info/version.json 2>&1" 2>&1
+    $verStr = ($verOut -join "`n").Trim()
+
+    if ($verStr -and $verStr.Length -gt 5) {
+        try {
+            $ver = $verStr | ConvertFrom-Json
+            if ($ver.Count -ge 1) { Add-Log "Artix Version: $($ver[0])" }
+            if ($ver.Count -ge 2) { Add-Log "Build Date: $($ver[1])" }
+            if ($ver.Count -ge 3) { Add-Log "Revision: $($ver[2])" }
+        } catch {
+            Add-Log "Version parse error"
+        }
+    } else {
+        Add-Log "Version info not available"
+    }
+
+    # Check RNDIS status
+    Add-Log ""
+    Add-Log "--- RNDIS/OFD ---"
+    $rndisOut = & $plinkPath -batch -ssh -P $config.ssh_port -pw $kassaPw -l $config.ssh_user $kassaIP "tail -3 /linuxcash/logs/current/rndis.log 2>&1" 2>&1
+    $rndisStr = ($rndisOut -join "`n").Trim()
+    if ($rndisStr -and $rndisStr.Length -gt 5) {
+        foreach ($line in $rndisStr.Split("`n")) {
+            if ($line -match "RNDIS|interface|Check") {
+                Add-Log $line.Trim()
+            }
+        }
+    } else {
+        Add-Log "RNDIS log not available"
+    }
+
+    Add-Log ""
+    Add-Log "========================================"
+    Add-Log "End FR Status"
+    Add-Log "========================================"
 })
 
 # Remote command execute buttons
