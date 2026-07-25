@@ -255,7 +255,7 @@ $groupPoscenter.Controls.Add($btnTestDriver)
 $btnFrStatus = New-Object System.Windows.Forms.Button
 $btnFrStatus.Text = [char]0x0421 + [char]0x0442 + [char]0x0430 + [char]0x0442 + [char]0x0443 + [char]0x0441 + " " + [char]0x0424 + [char]0x0420
 $btnFrStatus.Location = New-Object System.Drawing.Point(10, 48)
-$btnFrStatus.Size = New-Object System.Drawing.Size(140, 25)
+$btnFrStatus.Size = New-Object System.Drawing.Size(100, 25)
 $btnFrStatus.BackColor = $colorSuccess
 $btnFrStatus.ForeColor = [System.Drawing.Color]::White
 $btnFrStatus.FlatStyle = "Flat"
