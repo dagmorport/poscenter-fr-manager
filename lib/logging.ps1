@@ -15,6 +15,15 @@ function Write-AppLog {
 
 function Add-UILog {
     param([System.Windows.Forms.TextBox]$LogBox, [string]$msg)
+    # Called from background runspaces - marshal onto the UI thread
+    if ($null -eq $LogBox) {
+        Write-AppLog $msg
+        return
+    }
+    if ($LogBox.InvokeRequired) {
+        $LogBox.Invoke([Action[string]]{ param($m) Add-UILog -LogBox $LogBox -msg $m }, $msg)
+        return
+    }
     $LogBox.AppendText("`r`n$msg")
     $LogBox.ScrollToCaret()
     Write-AppLog $msg

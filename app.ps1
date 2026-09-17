@@ -13,6 +13,7 @@ $configFile = if (Test-Path $localConfig) { $localConfig } else { Join-Path $scr
 . "$scriptDir\lib\ssh.ps1"
 . "$scriptDir\lib\update.ps1"
 . "$scriptDir\lib\logging.ps1"
+. "$scriptDir\lib\monitor.ps1"
 
 try {
     $config = Read-Config $configFile
@@ -38,7 +39,16 @@ $State = [PSCustomObject]@{
     ConnectedIP = ""
     ConnectedPw = ""
     TunnelPID = $null
+    GraphicsKilled = $false
 }
+
+# Async state for Connect / KKT-monitor. MUST be script-scoped: locals of an
+# event-handler script block (Add_Click) are NOT visible to nested handlers
+# (the Timer's Add_Tick) in PowerShell 5.1, so $task/$ps/$runspace/$timer
+# declared in the click handler resolved to $null in the tick — the completion
+# branch never ran and the button stayed disabled forever.
+$script:conn = @{ runspace = $null; ps = $null; task = $null; timer = $null }
+$script:mon  = @{ runspace = $null; ps = $null; task = $null; timer = $null }
 
 # Colors - Material Design light palette
 $colorPrimary   = [System.Drawing.Color]::FromArgb(25, 118, 210)
@@ -57,7 +67,7 @@ $colorLightGray = [System.Drawing.Color]::FromArgb(158, 158, 158)
 # Form
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "POScenter FR Manager v$appVersion"
-$form.Size = New-Object System.Drawing.Size(500, 690)
+$form.Size = New-Object System.Drawing.Size(500, 770)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "Sizable"
 $form.TopMost = $false
@@ -181,17 +191,54 @@ $lblTermDesc.ForeColor = $colorLightGray
 $lblTermDesc.Font = New-Object System.Drawing.Font("Segoe UI", 8)
 $groupTerminal.Controls.Add($lblTermDesc)
 
+# ESM group
+$groupEsm = New-Object System.Windows.Forms.GroupBox
+$groupEsm.Text = [char]0x0415 + [char]0x0421 + [char]0x041C
+$groupEsm.Location = New-Object System.Drawing.Point(15, 390)
+$groupEsm.Size = New-Object System.Drawing.Size(455, 75)
+$groupEsm.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$form.Controls.Add($groupEsm)
+
+$cmbEsm = New-Object System.Windows.Forms.ComboBox
+$cmbEsm.Location = New-Object System.Drawing.Point(10, 25)
+$cmbEsm.Size = New-Object System.Drawing.Size(280, 25)
+$cmbEsm.DropDownStyle = "DropDownList"
+$cmbEsm.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+$groupEsm.Controls.Add($cmbEsm)
+
+$btnExecEsm = New-Object System.Windows.Forms.Button
+$btnExecEsm.Text = [char]0x0412 + [char]0x044B + [char]0x043F + [char]0x043E + [char]0x043B + [char]0x043D + [char]0x0438 + [char]0x0442 + [char]0x044C
+$btnExecEsm.Location = New-Object System.Drawing.Point(300, 22)
+$btnExecEsm.Size = New-Object System.Drawing.Size(140, 25)
+$btnExecEsm.BackColor = $colorWarning
+$btnExecEsm.ForeColor = [System.Drawing.Color]::White
+$btnExecEsm.FlatStyle = "Flat"
+$btnExecEsm.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$btnExecEsm.Cursor = [System.Windows.Forms.Cursors]::Hand
+$groupEsm.Controls.Add($btnExecEsm)
+
+$lblEsmDesc = New-Object System.Windows.Forms.Label
+$lblEsmDesc.Text = ""
+$lblEsmDesc.Location = New-Object System.Drawing.Point(10, 55)
+$lblEsmDesc.Size = New-Object System.Drawing.Size(435, 20)
+$lblEsmDesc.ForeColor = $colorLightGray
+$lblEsmDesc.Font = New-Object System.Drawing.Font("Segoe UI", 8)
+$groupEsm.Controls.Add($lblEsmDesc)
+
 # Populate command lists
 if ($config.remote_commands) {
     foreach ($cmd in $config.remote_commands) {
         if ($cmd.group -eq "terminal") {
             $cmbTerminal.Items.Add($cmd.label) | Out-Null
+        } elseif ($cmd.group -eq "esm") {
+            $cmbEsm.Items.Add($cmd.label) | Out-Null
         } else {
             $cmbCommands.Items.Add($cmd.label) | Out-Null
         }
     }
     if ($cmbCommands.Items.Count -gt 0) { $cmbCommands.SelectedIndex = 0 }
     if ($cmbTerminal.Items.Count -gt 0) { $cmbTerminal.SelectedIndex = 0 }
+    if ($cmbEsm.Items.Count -gt 0) { $cmbEsm.SelectedIndex = 0 }
 }
 
 $cmbCommands.Add_SelectedIndexChanged({
@@ -210,10 +257,18 @@ $cmbTerminal.Add_SelectedIndexChanged({
     }
 })
 
+$cmbEsm.Add_SelectedIndexChanged({
+    if ($cmbEsm.SelectedIndex -ge 0) {
+        $sel = $cmbEsm.SelectedItem
+        $cmdObj = $config.remote_commands | Where-Object { $_.label -eq $sel } | Select-Object -First 1
+        $lblEsmDesc.Text = if ($cmdObj -and $cmdObj.description) { $cmdObj.description } else { "" }
+    }
+})
+
 # POScenter group (all buttons except Update)
 $groupPoscenter = New-Object System.Windows.Forms.GroupBox
 $groupPoscenter.Text = "POScenter"
-$groupPoscenter.Location = New-Object System.Drawing.Point(15, 385)
+$groupPoscenter.Location = New-Object System.Drawing.Point(15, 475)
 $groupPoscenter.Size = New-Object System.Drawing.Size(455, 80)
 $groupPoscenter.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($groupPoscenter)
@@ -263,17 +318,38 @@ $btnFrStatus.Font = New-Object System.Drawing.Font("Segoe UI", 8)
 $btnFrStatus.Cursor = [System.Windows.Forms.Cursors]::Hand
 $groupPoscenter.Controls.Add($btnFrStatus)
 
+# KKT monitor update button (all cash registers -> kkt_monitor*.html)
+$btnMonitor = New-Object System.Windows.Forms.Button
+$btnMonitor.Text = [char]0x041E + [char]0x0431 + [char]0x043D + [char]0x043E + [char]0x0432 + [char]0x0438 + [char]0x0442 + [char]0x044C + " " + [char]0x043C + [char]0x043E + [char]0x043D + [char]0x0438 + [char]0x0442 + [char]0x043E + [char]0x0440 + [char]0x0438 + [char]0x043D + [char]0x0433 + " " + [char]0x041A + [char]0x041A + [char]0x0422
+$btnMonitor.Location = New-Object System.Drawing.Point(120, 48)
+$btnMonitor.Size = New-Object System.Drawing.Size(200, 25)
+$btnMonitor.BackColor = $colorPrimary
+$btnMonitor.ForeColor = [System.Drawing.Color]::White
+$btnMonitor.FlatStyle = "Flat"
+$btnMonitor.Font = New-Object System.Drawing.Font("Segoe UI", 8)
+$btnMonitor.Cursor = [System.Windows.Forms.Cursors]::Hand
+$groupPoscenter.Controls.Add($btnMonitor)
+
+# Kill cash GUI on Connect so the FR socket is free for the KKT driver
+$chkKillGraphics = New-Object System.Windows.Forms.CheckBox
+$chkKillGraphics.Text = [char]0x0413 + [char]0x0430 + [char]0x0441 + [char]0x0438 + [char]0x0442 + [char]0x044C + " " + [char]0x0433 + [char]0x0440 + [char]0x0430 + [char]0x0444 + [char]0x0438 + [char]0x043A + [char]0x0443
+$chkKillGraphics.Location = New-Object System.Drawing.Point(330, 52)
+$chkKillGraphics.AutoSize = $true
+$chkKillGraphics.Checked = $true
+$chkKillGraphics.Font = New-Object System.Drawing.Font("Segoe UI", 8)
+$groupPoscenter.Controls.Add($chkKillGraphics)
+
 # Log area
 $logLabel = New-Object System.Windows.Forms.Label
 $logLabel.Text = [char]0x0416 + [char]0x0443 + [char]0x0440 + [char]0x043D + [char]0x0430 + [char]0x043B
-$logLabel.Location = New-Object System.Drawing.Point(15, 515)
+$logLabel.Location = New-Object System.Drawing.Point(15, 565)
 $logLabel.AutoSize = $true
 $logLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $form.Controls.Add($logLabel)
 
 $btnUpdate = New-Object System.Windows.Forms.Button
 $btnUpdate.Text = [char]0x041E + [char]0x0431 + [char]0x043D + [char]0x043E + [char]0x0432 + [char]0x0438 + [char]0x0442 + [char]0x044C
-$btnUpdate.Location = New-Object System.Drawing.Point(340, 513)
+$btnUpdate.Location = New-Object System.Drawing.Point(340, 563)
 $btnUpdate.Size = New-Object System.Drawing.Size(75, 20)
 $btnUpdate.BackColor = $colorLightGray
 $btnUpdate.ForeColor = [System.Drawing.Color]::White
@@ -284,7 +360,7 @@ $form.Controls.Add($btnUpdate)
 
 $btnClearLog = New-Object System.Windows.Forms.Button
 $btnClearLog.Text = [char]0x041E + [char]0x0447 + [char]0x0438 + [char]0x0441 + [char]0x0442 + [char]0x0438 + [char]0x0442 + [char]0x044C
-$btnClearLog.Location = New-Object System.Drawing.Point(420, 513)
+$btnClearLog.Location = New-Object System.Drawing.Point(420, 563)
 $btnClearLog.Size = New-Object System.Drawing.Size(50, 20)
 $btnClearLog.BackColor = $colorLightGray
 $btnClearLog.ForeColor = [System.Drawing.Color]::White
@@ -296,7 +372,7 @@ $form.Controls.Add($btnClearLog)
 $btnClearLog.Add_Click({ $logBox.Clear() })
 
 $logBox = New-Object System.Windows.Forms.TextBox
-$logBox.Location = New-Object System.Drawing.Point(15, 537)
+$logBox.Location = New-Object System.Drawing.Point(15, 587)
 $logBox.Size = New-Object System.Drawing.Size(455, 130)
 $logBox.Multiline = $true
 $logBox.ScrollBars = "Vertical"
@@ -335,6 +411,19 @@ function Stop-PlinkTunnels {
     # Fallback: kill any remaining plink processes
     Get-Process plink -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 }
+
+# Remote command: collect TS PIOT license info (single quotes are safe for plink)
+$piotCmd = "printf 'TSPIOT='; grep -c tspiotesm /linuxcash/cash/data/info/license.json 2>/dev/null; printf '\nERR55='; grep -ac 'error=55' /linuxcash/logs/current/fr_drv_ng.log 2>/dev/null; printf '\nESMSVC='; /linuxcash/cash/bin/currentsettings -s plugins:esmservice 2>/dev/null; printf '\nMARKVER='; /linuxcash/cash/bin/currentsettings -s MarkedGoods:markVerifyCrptService 2>/dev/null; printf '\nPIOT='; grep -ahorE 'licenses:\{[^}]*\}|licenseValidTo.{0,25}|active_till.{0,30}' /var/log/esp/esm/um/esm-orchestrator.log /var/log/esp/esm/um/esm-cm_*.log 2>/dev/null | tail -1"
+
+# Parse TS PIOT info from cash register output
+# (moved to lib/monitor.ps1 together with the monitor collection logic)
+
+# Remote command: TS PIOT info + kkm.json fields (for kkt_monitor update)
+$monitorCmd = $piotCmd + "; printf '\nKKM='; cat /linuxcash/cash/data/info/kkm.json 2>/dev/null"
+
+# Kill cash GUI so the FR socket is free for the KKT driver (mirrors the Connect button)
+$killGuiCmd = 'kill -9 `pgrep -x artix-gui | head -1` 2>/dev/null; kill -9 `pgrep Xorg | head -1` 2>/dev/null'
+$guiStateCmd = 'pgrep -x artix-gui >/dev/null && echo GUI_ALIVE || echo GUI_DEAD'
 
 # Execute selected command (DRY - shared logic)
 function Invoke-SelectedCommand {
@@ -426,9 +515,11 @@ Add-ButtonHover $btnConnect $colorPrimary
 Add-ButtonHover $btnDisconnect $colorRed
 Add-ButtonHover $btnTestDriver $colorLightGray
 Add-ButtonHover $btnFrStatus $colorSuccess
+Add-ButtonHover $btnMonitor $colorPrimary
 Add-ButtonHover $btnUpdate $colorLightGray
 Add-ButtonHover $btnExecCmd $colorPrimary
 Add-ButtonHover $btnExecTerminal $colorSuccess
+Add-ButtonHover $btnExecEsm $colorWarning
 Add-ButtonHover $btnClearLog $colorLightGray
 
 # Check for updates (async using Task.Run)
@@ -465,22 +556,29 @@ $btnConnect.Add_Click({
         return
     }
 
+    # Don't start a second connect while one is in flight
+    if ($script:conn.task -and -not $script:conn.task.IsCompleted) {
+        Add-Log "Connection already in progress, please wait..."
+        return
+    }
+
     $btnConnect.Enabled = $false
     $selected = $listView.SelectedItems[0]
     $kassaIP = $selected.SubItems[1].Text
     $kassaName = $selected.Text
     $pw = $config.ssh_password
+    $killGraphics = $chkKillGraphics.Checked
 
     Add-Log "=== Connecting to $kassaName ($kassaIP) ==="
 
     # Run connect in background runspace
-    $runspace = [runspacefactory]::CreateRunspace()
-    $runspace.Open()
+    $script:conn.runspace = [runspacefactory]::CreateRunspace()
+    $script:conn.runspace.Open()
 
-    $ps = [powershell]::Create()
-    $ps.Runspace = $runspace
-    $ps.AddScript({
-        param($plinkPath, $kassaIP, $kassaName, $pw, $config)
+    $script:conn.ps = [powershell]::Create()
+    $script:conn.ps.Runspace = $script:conn.runspace
+    $script:conn.ps.AddScript({
+        param($plinkPath, $kassaIP, $kassaName, $pw, $config, $killGraphics)
 
         # Kill old plink
         Get-Process plink -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
@@ -491,19 +589,22 @@ $btnConnect.Add_Click({
         $testStr = ($test -join "`n").Trim()
 
         if ($testStr -notmatch "SSH_OK") {
-            return @{ Success = $false; Error = "SSH_FAILED" }
+            return @{ Success = $false; Error = "SSH_FAILED"; GraphicsKilled = $false }
         }
 
-        # Disable graphics
-        $xorgOut = & $plinkPath -batch -ssh -P $config.ssh_port -pw $pw -l $config.ssh_user $kassaIP "pgrep Xorg | head -1" 2>&1
-        $xorgStr = ($xorgOut -join "`n").Trim()
-        $pidStr = ""
-        if ($xorgStr -match '(\d+)') { $pidStr = $Matches[1] }
-        if ($pidStr -match '^\d+$') {
-            & $plinkPath -batch -ssh -P $config.ssh_port -pw $pw -l $config.ssh_user $kassaIP "sudo kill -INT $pidStr" 2>&1 | Out-Null
+        # Disable graphics (optional - some FRs allow a second connection)
+        $graphicsKilled = $false
+        if ($killGraphics) {
+            $xorgOut = & $plinkPath -batch -ssh -P $config.ssh_port -pw $pw -l $config.ssh_user $kassaIP "pgrep Xorg | head -1" 2>&1
+            $xorgStr = ($xorgOut -join "`n").Trim()
+            $pidStr = ""
+            if ($xorgStr -match '(\d+)') { $pidStr = $Matches[1] }
+            if ($pidStr -match '^\d+$') {
+                & $plinkPath -batch -ssh -P $config.ssh_port -pw $pw -l $config.ssh_user $kassaIP "sudo kill -INT $pidStr" 2>&1 | Out-Null
+            }
+            Start-Sleep -Seconds 1
+            $graphicsKilled = $true
         }
-
-        Start-Sleep -Seconds 1
 
         # Start tunnel
         Get-Process plink -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
@@ -530,54 +631,105 @@ $btnConnect.Add_Click({
             KassaName = $kassaName
             KassaIP = $kassaIP
             Password = $pw
+            GraphicsKilled = $graphicsKilled
             Error = if ($portReady) { $null } else { "TUNNEL_FAILED" }
         }
-    }).AddArgument($plinkPath).AddArgument($kassaIP).AddArgument($kassaName).AddArgument($pw).AddArgument($config)
+    }).AddArgument($plinkPath).AddArgument($kassaIP).AddArgument($kassaName).AddArgument($pw).AddArgument($config).AddArgument($killGraphics)
 
     # Async execution
-    $task = $ps.BeginInvoke()
+    $script:conn.task = $script:conn.ps.BeginInvoke()
+    # Watchdog: never leave the button disabled forever (e.g. SSH hangs)
+    $script:conn.deadline = (Get-Date).AddSeconds(60)
 
     # Poll for completion without blocking UI
-    $timer = New-Object System.Windows.Forms.Timer
-    $timer.Interval = 100
-    $timer.Add_Tick({
-        if ($task.IsCompleted) {
-            $timer.Stop()
-            $result = $ps.EndInvoke($task)
-            $ps.Dispose()
-            $runspace.Close()
-
-            if ($result.Success) {
-                Add-Log "   SSH OK"
-                Add-Log "   Graphics disabled"
-                Add-Log "   === CONNECTED ==="
-                $State.Connected = $true
-                $State.ConnectTime = Get-Date
-                $State.ConnectedKassa = $result.KassaName
-                $State.ConnectedIP = $result.KassaIP
-                $State.ConnectedPw = $result.Password
-                $State.TunnelPID = $result.PID
-                Add-Log "   plink PID: $($result.PID)"
-                # Highlight active kassa
-                if ($listView.SelectedItems.Count -gt 0) {
-                    Set-ActiveKassa $listView.SelectedItems[0] $true
-                }
-            } else {
-                Add-Log "   FAILED - $($result.Error)"
-                Stop-PlinkTunnels
-            }
-
+    $script:conn.timer = New-Object System.Windows.Forms.Timer
+    $script:conn.timer.Interval = 100
+    $script:conn.timer.Add_Tick({
+        if (-not $script:conn.task) {
+            $script:conn.timer.Stop()
             $btnConnect.Enabled = $true
-            Write-AppLog "Connection attempt completed"
+            return
         }
+
+        if (-not $script:conn.task.IsCompleted) {
+            # Watchdog: abort a stuck connection attempt
+            if ((Get-Date) -gt $script:conn.deadline) {
+                $script:conn.timer.Stop()
+                Add-Log "   TIMEOUT - aborting connection attempt"
+                try { $script:conn.runspace.Stop() } catch {}
+                try { $script:conn.ps.Dispose() } catch {}
+                try { $script:conn.runspace.Close() } catch {}
+                $script:conn.task = $null
+                $script:conn.ps = $null
+                $script:conn.runspace = $null
+                Stop-PlinkTunnels
+                $btnConnect.Enabled = $true
+                Write-AppLog "Connection attempt timed out"
+            }
+            return
+        }
+
+        $script:conn.timer.Stop()
+        $result = $null
+        try {
+            $result = $script:conn.ps.EndInvoke($script:conn.task)
+        } catch {
+            Add-Log "   Error: $_"
+        }
+        try { $script:conn.ps.Dispose() } catch {}
+        try { $script:conn.runspace.Close() } catch {}
+        $script:conn.task = $null
+        $script:conn.ps = $null
+        $script:conn.runspace = $null
+
+        if ($result -and $result.Success) {
+            Add-Log "   SSH OK"
+            if ($result.GraphicsKilled) { Add-Log "   Graphics disabled" }
+            Add-Log "   === CONNECTED ==="
+            $State.Connected = $true
+            $State.ConnectTime = Get-Date
+            $State.ConnectedKassa = $result.KassaName
+            $State.ConnectedIP = $result.KassaIP
+            $State.ConnectedPw = $result.Password
+            $State.TunnelPID = $result.PID
+            $State.GraphicsKilled = $result.GraphicsKilled
+            Add-Log "   plink PID: $($result.PID)"
+            # Highlight active kassa
+            if ($listView.SelectedItems.Count -gt 0) {
+                Set-ActiveKassa $listView.SelectedItems[0] $true
+            }
+        } else {
+            Add-Log "   FAILED - $(if ($result) { $result.Error } else { 'UNKNOWN' })"
+            Stop-PlinkTunnels
+        }
+
+        $btnConnect.Enabled = $true
+        Write-AppLog "Connection attempt completed"
     })
-    $timer.Start()
+    $script:conn.timer.Start()
 })
 
 # Disconnect button
 $btnDisconnect.Add_Click({
+    $ip = $State.ConnectedIP
+    $pw = $State.ConnectedPw
+    # Fallback: use selected kassa if state is empty
+    if (-not $ip -and $listView.SelectedItems.Count -gt 0) {
+        $ip = $listView.SelectedItems[0].SubItems[1].Text
+        $pw = $config.ssh_password
+    }
     Stop-PlinkTunnels
     Add-Log "Disconnected"
+    # Restart GUI on cash register (was killed for FR tunnel)
+    if ($ip -and $pw) {
+        Add-Log "Restarting GUI on $ip..."
+        try {
+            $null = Invoke-Plink -PlinkPath $plinkPath -HostName $ip -Port $config.ssh_port -User $config.ssh_user -Password $pw -Command "systemctl restart getty@tty1" 2>&1
+            Add-Log "GUI restarted"
+        } catch {
+            Add-Log "Failed to restart GUI: $_"
+        }
+    }
     $State.Connected = $false
     $State.ConnectTime = $null
     $State.ConnectedIP = ""
@@ -760,6 +912,41 @@ $btnFrStatus.Add_Click({
         Add-Log "License info not available"
     }
 
+    # Get TS PIOT license info (Artix module + FR license + ESM/ESP license term)
+    Add-Log ""
+    Add-Log "--- TS PIOT ---"
+    $piotOut = & $plinkPath -batch -ssh -P $config.ssh_port -pw $kassaPw -l $config.ssh_user $kassaIP $piotCmd 2>&1
+    $piot = Get-PiotInfo -Output $piotOut
+
+    if ($piot.ArtixModule -eq "0") {
+        Add-Log "Artix tspiotesm: NO (needs reissued license for the cash register key)"
+    } elseif ($piot.ArtixModule) {
+        Add-Log "Artix tspiotesm: YES"
+    } else {
+        Add-Log "Artix tspiotesm: unknown"
+    }
+
+    if ($piot.KktError55 -and [int]$piot.KktError55 -gt 0) {
+        Add-Log "KKT error=55: $($piot.KktError55) (FR has no TS PIOT license - contact service center)"
+    } else {
+        Add-Log "KKT error=55: none"
+    }
+
+    if ($piot.EsmService -or $piot.MarkVerify) {
+        Add-Log "esmservice: $($piot.EsmService)  markVerifyCrptService: $($piot.MarkVerify)"
+    }
+
+    if ($piot.ValidTill) {
+        if ($piot.IsActive) { Add-Log "ESM license is_active: $($piot.IsActive)" }
+        $syncNote = if ($piot.SyncedAt) { " [last sync: $($piot.SyncedAt)]" } else { "" }
+        Add-Log "TS PIOT license active till: $($piot.ValidTill) ($($piot.DaysLeft) days left)$syncNote"
+        if ($piot.DaysLeft -and [int]$piot.DaysLeft -lt 60) {
+            Add-Log "WARNING: TS PIOT license expires soon!"
+        }
+    } else {
+        Add-Log "TS PIOT license term: not found (ESM/TS PIOT is not used on this cash register)"
+    }
+
     # Get Version info
     Add-Log ""
     Add-Log "--- Version ---"
@@ -800,9 +987,84 @@ $btnFrStatus.Add_Click({
     Add-Log "========================================"
 })
 
+# KKT monitor button - collect data from all cash registers into kkt_monitor*.html
+$btnMonitor.Add_Click({
+    $monitorFile = Get-MonitorFile -Folder $scriptDir
+    if (-not $monitorFile) {
+        Add-Log "kkt_monitor*.html not found in $scriptDir"
+        return
+    }
+
+    $btnMonitor.Enabled = $false
+    Add-Log "========================================"
+    Add-Log "KKT monitor: $(Split-Path $monitorFile -Leaf)"
+    Add-Log "========================================"
+
+    $backup = "$monitorFile.bak-" + (Get-Date -Format "yyyyMMdd-HHmmss")
+    try {
+        Copy-Item $monitorFile $backup -Force
+        Add-Log "Backup: $(Split-Path $backup -Leaf)"
+    } catch {
+        Add-Log "Backup error: $_"
+    }
+
+    # Run in the background: each kassa needs the GUI stopped and a tunnel,
+    # which would freeze the UI for minutes if run on the main thread.
+    $runspace = [runspacefactory]::CreateRunspace()
+    $runspace.Open()
+    $ps = [powershell]::Create()
+    $ps.Runspace = $runspace
+    $cmd = $ps.AddScript({
+        param($MonitorFile, $PlinkPath, $Config, $MonitorCmd, $KillGuiCmd, $GuiStateCmd, $ScriptDir, $LogBox)
+        . "$ScriptDir\lib\ssh.ps1"
+        . "$ScriptDir\lib\logging.ps1"
+        . "$ScriptDir\lib\monitor.ps1"
+        function Add-Log { param([string]$msg) Add-UILog -LogBox $LogBox -msg $msg }
+        try {
+            $res = Update-KktMonitor -MonitorFile $MonitorFile -PlinkPath $PlinkPath -Config $Config `
+                -MonitorCmd $MonitorCmd -KillGuiCmd $KillGuiCmd -GuiStateCmd $GuiStateCmd
+            if ($res) {
+                Add-Log "----------------------------------------"
+                Add-Log "Total: $($res.Total)  updated: $($res.Updated)  added: $($res.Added)  failed: $($res.Failed)"
+                Add-Log "Feature licenses read: $($res.Licenses)  no PIOT data: $($res.NoData)  expires in <60 days: $($res.ExpiresSoon)"
+                Add-Log "Saved: $($res.File)"
+                Add-Log "In the browser press 'Reset DB' to drop cached IndexedDB data"
+            }
+        } catch {
+            Add-Log "Update error: $_"
+        }
+        Add-Log "========================================"
+    })
+    $cmd.AddArgument($monitorFile) | Out-Null
+    $cmd.AddArgument($plinkPath)   | Out-Null
+    $cmd.AddArgument($config)      | Out-Null
+    $cmd.AddArgument($monitorCmd)  | Out-Null
+    $cmd.AddArgument($killGuiCmd)  | Out-Null
+    $cmd.AddArgument($guiStateCmd) | Out-Null
+    $cmd.AddArgument($scriptDir)   | Out-Null
+    $cmd.AddArgument($logBox)      | Out-Null
+
+    $task = $ps.BeginInvoke()
+
+    $timer = New-Object System.Windows.Forms.Timer
+    $timer.Interval = 300
+    $timer.Add_Tick({
+        if ($task.IsCompleted) {
+            $timer.Stop()
+            try { $ps.EndInvoke($task) } catch {}
+            $ps.Dispose()
+            $runspace.Close()
+            $btnMonitor.Enabled = $true
+            Write-AppLog "KKT monitor update finished"
+        }
+    })
+    $timer.Start()
+})
+
 # Remote command execute buttons
 $btnExecCmd.Add_Click({ Invoke-SelectedCommand $cmbCommands $btnExecCmd })
 $btnExecTerminal.Add_Click({ Invoke-SelectedCommand $cmbTerminal $btnExecTerminal })
+$btnExecEsm.Add_Click({ Invoke-SelectedCommand $cmbEsm $btnExecEsm })
 
 # Startup
 Rotate-Logs
