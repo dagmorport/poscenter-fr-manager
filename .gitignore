@@ -48,3 +48,42 @@ copy-key.bat
 generate-config.ps1
 setup-key.ps1
 image/
+
+# opencode agent workspace
+.opencode/
+
+# Local working scripts (contain real IPs/credentials)
+build-esm-pack.ps1
+deploy-optimus.ps1
+run_update_regime.ps1
+optimus.sh
+optimus_v2.sh
+temp_auth.sh
+tmp_check.sh
+tmp-monitor-write-test.ps1
+fr_test.py
+
+# ESM install materials and binary packs
+esm-install/
+esm-pack.tar.gz
+esmpack_linux64_*/
+
+# KKT monitor data (generated, contains real license/FN data)
+kkt_monitor.html
+kkt_monitor.html.bak-*
+
+# Local notes / docs with real host data
+artix.txt
+log.txt
+log2.txt
+задача.txt
+puppet-restore.md
+запуск optimus.txt
+запуск.md
+Обновление кассового ПО.md
+Установка ЕСМ (ТС ПИоТ) на кассу.md
+Реализация проверки маркированных товаров с использованием ТС ПИоТ.md
+
+# Local data exports
+*.csv
+Новая папка/
