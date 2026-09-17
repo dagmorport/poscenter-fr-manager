@@ -19,6 +19,7 @@
     {"label": "Перезапустить GUI", "command": "systemctl restart artix-gui", "description": "Перезапускает графический интерфейс", "group": "system"},
     {"label": "Статус GUI", "command": "systemctl status artix-gui", "description": "Показывает состояние графического интерфейса", "group": "system"},
     {"label": "Подключение SSH", "command": "echo SSH_OK && hostname && uptime", "description": "Проверяет SSH подключение и показывает имя кассы", "group": "system"},
+    {"label": "Проверить мониторы", "command": "export XAUTHORITY=/home/autologon/.Xauthority; for d in :0 :255; do export DISPLAY=$d; xrandr --listmonitors 2>/dev/null && break; done; echo '---'; xrandr 2>&1 | grep -E ' connected|disconnected'", "description": "Показывает подключённые мониторы и экраны (включая экран покупателя)", "group": "system"},
     {"label": "Установить Сбербанк", "command": "aptitude install -y artix-sb && dpkg -l artix-sb | tail -3", "description": "Устанавливает модуль оплаты Сбербанк (artix-sb)", "group": "terminal"},
     {"label": "Настроить пинпад", "command": "echo -e 'SUBSYSTEM==\"tty\", KERNEL==\"ttyACM*\", ATTRS{idVendor}==\"0e8d\", ATTRS{idProduct}==\"2012\", SYMLINK+=\"ttyKozen\" SYMLINK+=\"ttyS99\"' > /etc/udev/rules.d/97-kozen.rules && udevadm control --reload-rules && udevadm trigger && ln -sf /dev/ttyACM2 /dev/ttyKozen && ln -sf /dev/ttyKozen /dev/ttyS99 && ls -la /dev/ttyKozen /dev/ttyS99", "description": "Создает udev правило с symlink ttyKozen и ttyS99 для пинпада Kozen P10", "group": "terminal"},
     {"label": "Копировать файлы Сбербанк", "command": "cp -a /linuxcash/cash/paysystems/sb/files/* /linuxcash/cash/paysystems/sb/ && chmod +x /linuxcash/cash/paysystems/sb/sb_pilot /linuxcash/cash/paysystems/sb/sb_call.sh /linuxcash/cash/paysystems/sb/upnixmn.out && ls -la /linuxcash/cash/paysystems/sb/sb_pilot /linuxcash/cash/paysystems/sb/upnixmn.out", "description": "Копирует файлы из files/ в sb/ (sb_pilot, upnixmn.out и др.)", "group": "terminal"},
@@ -29,6 +30,12 @@
     {"label": "Проверить порты", "command": "ls -la /dev/ttyACM* /dev/ttyKozen /dev/ttyS99 2>&1", "description": "Показывает ttyACM порты и symlink ttyKozen/ttyS99", "group": "terminal"},
     {"label": "Проверить pinpad.ini", "command": "cat /linuxcash/cash/paysystems/sb/pinpad.ini 2>&1", "description": "Показывает текущий pinpad.ini", "group": "terminal"},
     {"label": "Проверить findcom.ini", "command": "cat /linuxcash/cash/paysystems/sb/findcom.ini 2>&1", "description": "Показывает findcom.ini (поиск COM-порта)", "group": "terminal"},
-    {"label": "Список /sb/", "command": "ls -la /linuxcash/cash/paysystems/sb/ 2>&1", "description": "Показывает все файлы в директории sb", "group": "terminal"}
+    {"label": "Список /sb/", "command": "ls -la /linuxcash/cash/paysystems/sb/ 2>&1", "description": "Показывает все файлы в директории sb", "group": "terminal"},
+    {"label": "Статус ЕСМ", "command": "echo '=== lm-controller ==='; systemctl is-active esm-lm-controller; echo '=== orchestrator ==='; systemctl is-active esm-orchestrator; echo '=== cm ==='; systemctl list-units 'esm-cm-*' --no-pager --no-legend", "description": "Показывает статус всех сервисов ЕСМ (lm-controller, orchestrator, cm)", "group": "esm"},
+    {"label": "Перезапуск ЕСМ", "command": "systemctl restart esm-lm-controller esm-orchestrator; systemctl restart esm-cm-*; sleep 2; echo '=== Проверка ==='; systemctl is-active esm-lm-controller esm-orchestrator", "description": "Перезапускает все сервисы ЕСМ и проверяет их статус", "group": "esm"},
+    {"label": "Логи lm-controller", "command": "journalctl -u esm-lm-controller --since '10 min ago' --no-pager -n 30", "description": "Показывает последние логи контроллера ЛМ ЧЗ (честный знак)", "group": "esm"},
+    {"label": "Логи orchestrator", "command": "journalctl -u esm-orchestrator --since '10 min ago' --no-pager -n 30", "description": "Показывает последние логи оркестратора ЕСМ", "group": "esm"},
+    {"label": "Логи cm", "command": "journalctl -u 'esm-cm-*' --since '10 min ago' --no-pager -n 30", "description": "Показывает последние логи управляющего модуля ЕСМ", "group": "esm"},
+    {"label": "Версия ЕСМ", "command": "dpkg -l esm esm-lm-controller 2>/dev/null | grep -E '^ii'", "description": "Показывает установленные версии пакетов ЕСМ", "group": "esm"}
   ]
 }
