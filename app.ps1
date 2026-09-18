@@ -49,6 +49,9 @@ $State = [PSCustomObject]@{
 # branch never ran and the button stayed disabled forever.
 $script:conn = @{ runspace = $null; ps = $null; task = $null; timer = $null }
 $script:mon  = @{ runspace = $null; ps = $null; task = $null; timer = $null }
+# Test driver (DrvFRTst.exe): process handle + exit watcher. The cash GUI is
+# restored automatically when the test driver closes (see btnTestDriver).
+$script:td   = @{ proc = $null; timer = $null }
 
 # Colors - Material Design light palette
 $colorPrimary   = [System.Drawing.Color]::FromArgb(25, 118, 210)
@@ -412,6 +415,40 @@ function Stop-PlinkTunnels {
     Get-Process plink -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 }
 
+# Tear down the FR tunnel and restore the cash register GUI that was disabled
+# for the connection. Shared by the Disconnect button, the test-driver exit
+# watcher and the form-closing safety net.
+# getty@tty1 is restarted only when we killed the GUI ourselves (checkbox
+# "Гасить графику"), or when -Force is set (manual recovery of a kassa whose
+# GUI was left dead, e.g. after an app crash).
+function Restore-CashGui {
+    param([string]$IP, [string]$Password, [switch]$Force)
+
+    Stop-PlinkTunnels
+
+    if ($IP -and $Password -and ($Force -or $State.GraphicsKilled)) {
+        Add-Log "Restarting GUI on $IP..."
+        try {
+            $null = Invoke-Plink -PlinkPath $plinkPath -HostName $IP -Port $config.ssh_port `
+                -User $config.ssh_user -Password $Password -Command "systemctl restart getty@tty1" 2>&1
+            Add-Log "GUI restarted"
+        } catch {
+            Add-Log "Failed to restart GUI: $_"
+        }
+    }
+
+    $State.Connected = $false
+    $State.ConnectTime = $null
+    $State.ConnectedIP = ""
+    $State.ConnectedPw = ""
+    $State.GraphicsKilled = $false
+    $State.TunnelPID = $null
+    # Reset active kassa highlight
+    foreach ($item in $listView.Items) {
+        Set-ActiveKassa $item $false
+    }
+}
+
 # Remote command: collect TS PIOT license info (single quotes are safe for plink)
 $piotCmd = "printf 'TSPIOT='; grep -c tspiotesm /linuxcash/cash/data/info/license.json 2>/dev/null; printf '\nERR55='; grep -ac 'error=55' /linuxcash/logs/current/fr_drv_ng.log 2>/dev/null; printf '\nESMSVC='; /linuxcash/cash/bin/currentsettings -s plugins:esmservice 2>/dev/null; printf '\nMARKVER='; /linuxcash/cash/bin/currentsettings -s MarkedGoods:markVerifyCrptService 2>/dev/null; printf '\nPIOT='; grep -ahorE 'licenses:\{[^}]*\}|licenseValidTo.{0,25}|active_till.{0,30}' /var/log/esp/esm/um/esm-orchestrator.log /var/log/esp/esm/um/esm-cm_*.log 2>/dev/null | tail -1"
 
@@ -711,33 +748,17 @@ $btnConnect.Add_Click({
 
 # Disconnect button
 $btnDisconnect.Add_Click({
-    $ip = $State.ConnectedIP
-    $pw = $State.ConnectedPw
-    # Fallback: use selected kassa if state is empty
-    if (-not $ip -and $listView.SelectedItems.Count -gt 0) {
+    if ($State.Connected) {
+        Restore-CashGui -IP $State.ConnectedIP -Password $State.ConnectedPw
+    } elseif ($listView.SelectedItems.Count -gt 0) {
+        # Fallback: manual recovery of a selected kassa (GUI was left dead,
+        # e.g. after an app crash) - restore it even without stored state.
         $ip = $listView.SelectedItems[0].SubItems[1].Text
-        $pw = $config.ssh_password
+        Restore-CashGui -IP $ip -Password $config.ssh_password -Force
+    } else {
+        Stop-PlinkTunnels
     }
-    Stop-PlinkTunnels
     Add-Log "Disconnected"
-    # Restart GUI on cash register (was killed for FR tunnel)
-    if ($ip -and $pw) {
-        Add-Log "Restarting GUI on $ip..."
-        try {
-            $null = Invoke-Plink -PlinkPath $plinkPath -HostName $ip -Port $config.ssh_port -User $config.ssh_user -Password $pw -Command "systemctl restart getty@tty1" 2>&1
-            Add-Log "GUI restarted"
-        } catch {
-            Add-Log "Failed to restart GUI: $_"
-        }
-    }
-    $State.Connected = $false
-    $State.ConnectTime = $null
-    $State.ConnectedIP = ""
-    $State.ConnectedPw = ""
-    # Reset active kassa highlight
-    foreach ($item in $listView.Items) {
-        Set-ActiveKassa $item $false
-    }
 })
 
 # Update button
@@ -748,11 +769,10 @@ $btnUpdate.Add_Click({
     $btnUpdate.Enabled = $true
 })
 
+# Test driver button - launches DrvFRTst.exe and, when it closes, automatically
+# restores the cash register GUI that was disabled for the FR connection.
 $btnTestDriver.Add_Click({
-    if ($testDriverPath -and (Test-Path $testDriverPath)) {
-        Add-Log "Launching test driver..."
-        Start-Process -FilePath $testDriverPath
-    } else {
+    if (-not $testDriverPath -or -not (Test-Path $testDriverPath)) {
         Add-Log "Test driver not found: $testDriverPath"
         [System.Windows.Forms.MessageBox]::Show(
             "DrvFRTst.exe not found at:`n$testDriverPath`n`nInstall Poscenter DrvKKT driver.",
@@ -760,7 +780,52 @@ $btnTestDriver.Add_Click({
             "OK",
             "Warning"
         )
+        return
     }
+
+    # Only one test driver instance at a time
+    if ($script:td.proc -and -not $script:td.proc.HasExited) {
+        Add-Log "Test driver is already running"
+        return
+    }
+
+    Add-Log "Launching test driver..."
+    try {
+        $proc = Start-Process -FilePath $testDriverPath -PassThru
+    } catch {
+        Add-Log "Failed to launch test driver: $_"
+        return
+    }
+    $script:td.proc = $proc
+    Add-Log "Test driver started (PID $($proc.Id))"
+
+    # Watch for the test driver to exit without blocking the UI. The exit
+    # handler must be script-scoped: a local $proc of this click handler is
+    # not visible inside the Timer tick (same reason as $script:conn above).
+    if ($script:td.timer) { $script:td.timer.Stop() }
+    $script:td.timer = New-Object System.Windows.Forms.Timer
+    $script:td.timer.Interval = 1000
+    $script:td.timer.Add_Tick({
+        if (-not $script:td.proc) { $script:td.timer.Stop(); return }
+        if (-not $script:td.proc.HasExited) { return }
+
+        $exited = $script:td.proc
+        $script:td.proc = $null
+        $script:td.timer.Stop()
+
+        Add-Log "Test driver closed (exit code $($exited.ExitCode))"
+
+        # Restore the GUI only if the connection is still up and we disabled
+        # the graphics ourselves. If the user already pressed Stop (or never
+        # killed the graphics), there is nothing to restore.
+        if ($State.Connected -and $State.GraphicsKilled) {
+            Add-Log "Auto-restoring GUI on $($State.ConnectedIP)..."
+            Restore-CashGui -IP $State.ConnectedIP -Password $State.ConnectedPw
+        } else {
+            Add-Log "GUI was not disabled - nothing to restore"
+        }
+    })
+    $script:td.timer.Start()
 })
 
 # FR Status button - get full FR status via SSH
@@ -1073,5 +1138,16 @@ Add-Log "Cash registers: $($config.kassas.Count)"
 
 # Check for updates on startup (async using Task)
 $null = [System.Threading.Tasks.Task]::Run([Action]{ Check-Update })
+
+# Safety net: if the app is closed while connected and the cash GUI was
+# disabled, restore the GUI before exiting - otherwise it stays dead until
+# someone reboots the cash register.
+$form.Add_FormClosing({
+    if ($script:td.timer) { $script:td.timer.Stop() }
+    if ($State.Connected -and $State.GraphicsKilled) {
+        Add-Log "Application closing - restoring GUI on $($State.ConnectedIP)..."
+        Restore-CashGui -IP $State.ConnectedIP -Password $State.ConnectedPw
+    }
+})
 
 $form.ShowDialog() | Out-Null

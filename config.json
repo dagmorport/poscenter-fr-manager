@@ -16,7 +16,7 @@
   "remote_commands": [
     {"label": "Перезагрузка", "command": "systemctl reboot", "description": "Перезагружает кассу", "group": "system"},
     {"label": "Убить GUI", "command": "pkill -x artix-gui", "description": "Завершает графический интерфейс (нужно для ФР)", "group": "system"},
-    {"label": "Перезапустить GUI", "command": "systemctl restart artix-gui", "description": "Перезапускает графический интерфейс", "group": "system"},
+    {"label": "Перезапустить GUI", "command": "systemctl restart artix-gui 2>/dev/null || systemctl restart getty@tty1", "description": "Перезапускает графический интерфейс (artix-gui, на кассах без сервиса - getty@tty1)", "group": "system"},
     {"label": "Статус GUI", "command": "systemctl status artix-gui", "description": "Показывает состояние графического интерфейса", "group": "system"},
     {"label": "Подключение SSH", "command": "echo SSH_OK && hostname && uptime", "description": "Проверяет SSH подключение и показывает имя кассы", "group": "system"},
     {"label": "Проверить мониторы", "command": "export XAUTHORITY=/home/autologon/.Xauthority; for d in :0 :255; do export DISPLAY=$d; xrandr --listmonitors 2>/dev/null && break; done; echo '---'; xrandr 2>&1 | grep -E ' connected|disconnected'", "description": "Показывает подключённые мониторы и экраны (включая экран покупателя)", "group": "system"},
